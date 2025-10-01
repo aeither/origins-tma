@@ -1,4 +1,3 @@
-import '../polyfills' // Import polyfills first
 import {
   Outlet,
   HeadContent,
@@ -33,6 +32,10 @@ export const Route = createRootRoute({
       },
     ],
     scripts: [
+      {
+        type: 'module',
+        src: '/polyfills.js',
+      },
       {
         src: 'https://telegram.org/js/telegram-web-app.js',
       },
