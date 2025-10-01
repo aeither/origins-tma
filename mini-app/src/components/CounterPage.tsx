@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   TonConnectButton,
   useTonConnectUI,
@@ -16,6 +16,10 @@ export const CounterPage: React.FC = () => {
   const [status, setStatus] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Track if a fetch is in progress to prevent overlapping requests
+  const isFetchingRef = useRef(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // Initialize TON client for reading contract data
   const tonClient = new TonClient({
     endpoint: TON_CENTER_ENDPOINTS[NETWORK],
@@ -23,6 +27,13 @@ export const CounterPage: React.FC = () => {
   const contractAddress = Address.parse(CONTRACT_ADDRESS);
 
   const fetchContractData = async () => {
+    // Prevent overlapping requests
+    if (isFetchingRef.current) {
+      console.log('[Counter Debug] Fetch already in progress, skipping...');
+      return;
+    }
+    
+    isFetchingRef.current = true;
     console.log('[Counter Debug] Fetching contract data...');
     try {
       setIsLoading(true);
@@ -51,15 +62,44 @@ export const CounterPage: React.FC = () => {
       setStatus(errorMessage);
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
       console.log('[Counter Debug] Contract data fetch completed');
     }
   };
 
   useEffect(() => {
+    // Visibility handler for tab/window
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        console.log('[Counter Debug] Tab became visible, resuming polling');
+        fetchContractData();
+        // Start polling when visible
+        if (!intervalRef.current) {
+          intervalRef.current = setInterval(fetchContractData, 30000); // Increased to 30s
+        }
+      } else {
+        console.log('[Counter Debug] Tab hidden, pausing polling');
+        // Pause polling when not visible
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    // Initial fetch & polling
     fetchContractData();
-    // Fetch every 10 seconds for auto-update
-    const interval = setInterval(fetchContractData, 10000);
-    return () => clearInterval(interval);
+    intervalRef.current = setInterval(fetchContractData, 30000); // Poll every 30 seconds
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, []);
 
   // Helper function to encode Increment message payload
@@ -256,6 +296,9 @@ export const CounterPage: React.FC = () => {
           >
             {isLoading ? "Loading..." : "Refresh Data"}
           </button>
+          <p className="text-xs text-gray-500 mt-2 text-center">
+            Auto-refreshes every 30 seconds (pauses when tab is hidden)
+          </p>
         </div>
 
         {/* Increment Transaction */}
