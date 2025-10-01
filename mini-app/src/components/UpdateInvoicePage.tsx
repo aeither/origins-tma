@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  TonConnectButton,
   useTonConnectUI,
   useTonWallet,
 } from "@tonconnect/ui-react";
@@ -151,43 +150,55 @@ export const UpdateInvoicePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#282c34] text-white p-4">
-      <div className="max-w-md mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-[#002952] via-[#003c71] to-[#004a8f] text-white p-6">
+      <div className="max-w-3xl mx-auto">
         {/* Navigation */}
-        <div className="mb-6">
+        <div className="mb-8">
           <Link
-            to="/counter"
-            className="text-blue-400 hover:text-blue-300 text-sm"
+            to="/"
+            className="inline-flex items-center text-[#20d9c5] hover:text-[#60e8d8] transition-colors font-medium"
           >
-            ← Back to Invoice Contract
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Home
           </Link>
         </div>
 
         {/* Header */}
-        <div className="bg-[#3a3f47] rounded-lg p-6 mb-6">
-          <h1 className="text-2xl font-bold mb-2">Update Invoice</h1>
-          <p className="text-gray-400 text-sm">
-            Mark an invoice as paid by entering its ID
+        <div className="glass-card rounded-2xl p-8 mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="text-5xl">💼</div>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-[#20d9c5] to-[#60e8d8] bg-clip-text text-transparent">
+                Client Payment Portal
+              </h1>
+              <p className="text-gray-400 text-sm mt-1">Step 2: Pay your invoices</p>
+            </div>
+          </div>
+          <p className="text-gray-300 text-lg">
+            Enter the invoice ID you received from your freelancer to review and pay
           </p>
         </div>
 
-        {/* Wallet Connection */}
-        <div className="bg-[#3a3f47] rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-3">Wallet Connection</h2>
-          <TonConnectButton />
-          {wallet && (
-            <div className="mt-3 text-sm text-green-400">
-              ✓ Connected: {wallet.account.address.slice(0, 8)}...{wallet.account.address.slice(-6)}
+        {/* Wallet Connection Status */}
+        {wallet && (
+          <div className="glass-card rounded-2xl p-6 mb-8">
+            <div className="flex items-center text-[#20d9c5]">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="font-semibold">Wallet Connected: {wallet.account.address.slice(0, 8)}...{wallet.account.address.slice(-6)}</span>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Fetch Invoice Form */}
-        <div className="bg-[#3a3f47] rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">Step 1: Fetch Invoice Details</h2>
+        <div className="glass-card rounded-2xl p-8 mb-8">
+          <h2 className="text-2xl font-bold mb-6">Step 1: Fetch Invoice Details</h2>
           
-          <div className="mb-4">
-            <label htmlFor="invoiceId" className="block text-sm font-medium mb-2">
+          <div className="mb-6">
+            <label htmlFor="invoiceId" className="block text-sm font-medium text-gray-300 mb-2">
               Invoice ID
             </label>
             <input
@@ -201,10 +212,10 @@ export const UpdateInvoicePage: React.FC = () => {
                 setInvoice(null); // Clear previous invoice when ID changes
               }}
               placeholder="Enter invoice ID (e.g., 0, 1, 2...)"
-              className="w-full px-4 py-2 bg-[#282c34] border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 text-white"
+              className="w-full glass-input text-white px-4 py-3 rounded-xl transition-all"
               disabled={isLoading}
             />
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-2 text-xs text-gray-400">
               Enter the ID of the invoice you want to mark as paid
             </p>
           </div>
@@ -212,10 +223,10 @@ export const UpdateInvoicePage: React.FC = () => {
           <button
             onClick={handleFetchInvoice}
             disabled={isLoading || !invoiceId}
-            className={`w-full py-3 px-4 rounded-lg font-semibold transition-colors ${
+            className={`w-full py-4 px-6 rounded-xl font-semibold transition-all ${
               isLoading || !invoiceId
-                ? "bg-gray-600 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"
+                ? "bg-white/10 cursor-not-allowed opacity-50"
+                : "glass-button"
             }`}
           >
             {isLoading ? "Fetching..." : "Fetch Invoice Details"}
@@ -224,31 +235,31 @@ export const UpdateInvoicePage: React.FC = () => {
 
         {/* Invoice Details */}
         {invoice && (
-          <div className="bg-[#3a3f47] rounded-lg p-6 mb-6">
-            <h2 className="text-lg font-semibold mb-4">Invoice Details</h2>
-            <div className="space-y-3">
+          <div className="glass-card rounded-2xl p-8 mb-8">
+            <h2 className="text-2xl font-bold mb-6">Invoice Details</h2>
+            <div className="space-y-5">
               <div>
-                <p className="text-xs text-gray-400">Invoice ID</p>
-                <p className="text-lg font-bold text-blue-400">#{invoice.invoiceId}</p>
+                <p className="text-xs text-gray-400 mb-1">Invoice ID</p>
+                <p className="text-2xl font-bold text-[#20d9c5]">#{invoice.invoiceId}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400">Amount</p>
-                <p className="text-2xl font-bold text-green-400">
+                <p className="text-xs text-gray-400 mb-1">Amount</p>
+                <p className="text-4xl font-bold text-[#20d9c5]">
                   {Number(invoice.amount) / 1e9} TON
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-400">Recipient Wallet</p>
-                <p className="font-mono text-xs break-all text-gray-300">
+                <p className="text-xs text-gray-400 mb-1">Recipient Wallet</p>
+                <p className="font-mono text-xs break-all text-gray-300 bg-white/5 p-3 rounded-lg">
                   {invoice.wallet.toString()}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-400">Status</p>
-                <span className={`inline-block px-3 py-1 rounded text-sm font-semibold ${
-                  invoice.paid ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                <p className="text-xs text-gray-400 mb-1">Status</p>
+                <span className={`inline-block px-4 py-2 rounded-full text-sm font-semibold ${
+                  invoice.paid ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                 }`}>
-                  {invoice.paid ? '✅ PAID' : '⏳ UNPAID'}
+                  {invoice.paid ? '✓ PAID' : '○ UNPAID'}
                 </span>
               </div>
             </div>
@@ -257,23 +268,23 @@ export const UpdateInvoicePage: React.FC = () => {
 
         {/* Payment Form */}
         {invoice && (
-          <div className="bg-[#3a3f47] rounded-lg p-6 mb-6">
-            <h2 className="text-lg font-semibold mb-4">Step 2: Send Payment</h2>
+          <div className="glass-card rounded-2xl p-8 mb-8">
+            <h2 className="text-2xl font-bold mb-6">Step 2: Send Payment</h2>
             
-            <div className="bg-[#282c34] rounded-lg p-4 mb-4">
-              <h3 className="text-sm font-semibold mb-2 text-gray-400">Payment Summary</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm">Invoice Amount:</span>
-                  <span className="text-sm font-bold">{Number(invoice.amount) / 1e9} TON</span>
+            <div className="glass-card rounded-xl p-6 mb-6">
+              <h3 className="text-sm font-semibold mb-4 text-gray-300">Payment Summary</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Invoice Amount:</span>
+                  <span className="font-bold text-lg">{Number(invoice.amount) / 1e9} TON</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Transaction Fee:</span>
-                  <span className="text-sm font-bold">0.1 TON</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Transaction Fee:</span>
+                  <span className="font-bold text-lg">0.1 TON</span>
                 </div>
-                <div className="border-t border-gray-600 pt-2 flex justify-between">
-                  <span className="font-bold">Total:</span>
-                  <span className="font-bold text-green-400">
+                <div className="border-t border-white/10 pt-3 flex justify-between items-center">
+                  <span className="font-bold text-lg">Total:</span>
+                  <span className="font-bold text-2xl text-[#20d9c5]">
                     {(Number(invoice.amount) / 1e9 + 0.1).toFixed(2)} TON
                   </span>
                 </div>
@@ -284,10 +295,10 @@ export const UpdateInvoicePage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading || !wallet}
-                className={`w-full py-3 px-4 rounded-lg font-semibold transition-colors ${
+                className={`w-full py-4 px-6 rounded-xl font-semibold transition-all ${
                   isLoading || !wallet
-                    ? "bg-gray-600 cursor-not-allowed"
-                    : "bg-yellow-600 hover:bg-yellow-700"
+                    ? "bg-white/10 cursor-not-allowed opacity-50"
+                    : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-lg hover:shadow-amber-500/30"
                 }`}
               >
                 {isLoading ? "Processing..." : "Mark as Paid & Send Payment"}
@@ -298,31 +309,31 @@ export const UpdateInvoicePage: React.FC = () => {
 
         {/* Status Message */}
         {status && (
-          <div className="bg-[#3a3f47] rounded-lg p-4 mb-6">
-            <h3 className="text-sm font-semibold mb-2">Status</h3>
-            <p className="text-sm whitespace-pre-wrap break-words">{status}</p>
+          <div className="glass-card rounded-2xl p-6 mb-8">
+            <h3 className="text-sm font-semibold mb-2 text-[#20d9c5]">Status</h3>
+            <p className="text-sm whitespace-pre-wrap break-words text-gray-300">{status}</p>
           </div>
         )}
 
         {/* Instructions */}
-        <div className="bg-[#3a3f47] rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-3">How to Use</h2>
-          <ol className="space-y-2 text-sm text-gray-300">
-            <li className="flex">
-              <span className="font-bold mr-2">1.</span>
-              <span>Connect your wallet using the button above</span>
+        <div className="glass-card rounded-2xl p-8">
+          <h2 className="text-2xl font-bold mb-6">How to Use</h2>
+          <ol className="space-y-4 text-gray-300">
+            <li className="flex items-start">
+              <span className="flex-shrink-0 w-8 h-8 bg-[#20d9c5] rounded-full flex items-center justify-center font-bold text-white mr-4">1</span>
+              <span className="pt-1">Connect your wallet using the button above</span>
             </li>
-            <li className="flex">
-              <span className="font-bold mr-2">2.</span>
-              <span>Enter the invoice ID you want to mark as paid (you can find invoice IDs on the Invoice Contract page)</span>
+            <li className="flex items-start">
+              <span className="flex-shrink-0 w-8 h-8 bg-[#20d9c5] rounded-full flex items-center justify-center font-bold text-white mr-4">2</span>
+              <span className="pt-1">Enter the invoice ID shared by your freelancer (e.g., #0, #1, #2, etc.)</span>
             </li>
-            <li className="flex">
-              <span className="font-bold mr-2">3.</span>
-              <span>Click "Mark as Paid" and approve the transaction in your wallet</span>
+            <li className="flex items-start">
+              <span className="flex-shrink-0 w-8 h-8 bg-[#20d9c5] rounded-full flex items-center justify-center font-bold text-white mr-4">3</span>
+              <span className="pt-1">Click "Mark as Paid" and approve the transaction in your wallet</span>
             </li>
-            <li className="flex">
-              <span className="font-bold mr-2">4.</span>
-              <span>Wait a few seconds for the transaction to be processed on the blockchain</span>
+            <li className="flex items-start">
+              <span className="flex-shrink-0 w-8 h-8 bg-[#20d9c5] rounded-full flex items-center justify-center font-bold text-white mr-4">4</span>
+              <span className="pt-1">Wait a few seconds for the transaction to be processed on the blockchain</span>
             </li>
           </ol>
         </div>

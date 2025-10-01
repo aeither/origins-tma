@@ -9,6 +9,7 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { TonConnectUIProvider, THEME } from "@tonconnect/ui-react"
 import { getManifestUrl, getTwaReturnUrl } from '../config/tonconnect'
 import { setupGlobalErrorHandling, logTonConnectEnvironment, validateManifestUrl } from '../utils/debug'
+import Header from '../components/Header'
 
 import appCss from '../styles.css?url'
 
@@ -113,6 +114,7 @@ export const Route = createRootRoute({
           language="en"
           restoreConnection={true}
         >
+          <Header />
           <Outlet />
           {/* <TanStackRouterDevtools /> */}
         </TonConnectUIProvider>
