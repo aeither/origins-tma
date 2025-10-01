@@ -8,7 +8,7 @@ All commands you need to run the TON Telegram Mini App Starter.
 # 1. Install all dependencies
 pnpm install
 cd mini-app && pnpm install && cd ..
-cd telegram-bot && bun install && cd ..
+cd telegram-bot && pnpm install && cd ..
 
 # 2. Build smart contracts
 npx blueprint build
@@ -35,7 +35,7 @@ ngrok http 3000
 ### Terminal 3: Telegram Bot
 ```bash
 cd telegram-bot
-bun run dev
+pnpm run dev
 # Bot will respond to Telegram messages
 ```
 

@@ -14,6 +14,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as RewardContractRouteImport } from './routes/reward-contract'
 import { Route as PlaygroundRouteImport } from './routes/playground'
 import { Route as HelloWorldRouteImport } from './routes/hello-world'
+import { Route as CounterRouteImport } from './routes/counter'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as QuizQuizIdRouteImport } from './routes/quiz.$quizId'
 import { Route as QuizQuizIdClaimRouteImport } from './routes/quiz.$quizId.claim'
@@ -36,6 +37,11 @@ const PlaygroundRoute = PlaygroundRouteImport.update({
 const HelloWorldRoute = HelloWorldRouteImport.update({
   id: '/hello-world',
   path: '/hello-world',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CounterRoute = CounterRouteImport.update({
+  id: '/counter',
+  path: '/counter',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -71,6 +77,7 @@ const ApiDemoNamesServerRoute = ApiDemoNamesServerRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/counter': typeof CounterRoute
   '/hello-world': typeof HelloWorldRoute
   '/playground': typeof PlaygroundRoute
   '/reward-contract': typeof RewardContractRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/counter': typeof CounterRoute
   '/hello-world': typeof HelloWorldRoute
   '/playground': typeof PlaygroundRoute
   '/reward-contract': typeof RewardContractRoute
@@ -92,6 +100,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/counter': typeof CounterRoute
   '/hello-world': typeof HelloWorldRoute
   '/playground': typeof PlaygroundRoute
   '/reward-contract': typeof RewardContractRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/counter'
     | '/hello-world'
     | '/playground'
     | '/reward-contract'
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/counter'
     | '/hello-world'
     | '/playground'
     | '/reward-contract'
@@ -124,6 +135,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/counter'
     | '/hello-world'
     | '/playground'
     | '/reward-contract'
@@ -135,6 +147,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CounterRoute: typeof CounterRoute
   HelloWorldRoute: typeof HelloWorldRoute
   PlaygroundRoute: typeof PlaygroundRoute
   RewardContractRoute: typeof RewardContractRoute
@@ -185,6 +198,13 @@ declare module '@tanstack/react-router' {
       path: '/hello-world'
       fullPath: '/hello-world'
       preLoaderRoute: typeof HelloWorldRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/counter': {
+      id: '/counter'
+      path: '/counter'
+      fullPath: '/counter'
+      preLoaderRoute: typeof CounterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -250,6 +270,7 @@ const QuizQuizIdRouteWithChildren = QuizQuizIdRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CounterRoute: CounterRoute,
   HelloWorldRoute: HelloWorldRoute,
   PlaygroundRoute: PlaygroundRoute,
   RewardContractRoute: RewardContractRoute,
