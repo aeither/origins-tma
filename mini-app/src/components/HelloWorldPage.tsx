@@ -6,7 +6,7 @@ import {
 } from "@tonconnect/ui-react";
 import { TonClient, Address, toNano, beginCell } from "@ton/ton";
 import { Link } from "@tanstack/react-router";
-import { CONTRACT_ADDRESS } from "../config/consts";
+import { CONTRACT_ADDRESS, NETWORK, TON_CENTER_ENDPOINTS } from "../config/consts";
 
 export const HelloWorldPage: React.FC = () => {
   const [tonConnectUI] = useTonConnectUI();
@@ -18,8 +18,9 @@ export const HelloWorldPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Initialize TON client for reading contract data
-  const tonClient = new TonClient({ 
-    endpoint: "https://toncenter.com/api/v2/jsonRPC"
+  const tonClient = new TonClient({
+    endpoint: TON_CENTER_ENDPOINTS[NETWORK],
+    apiKey: undefined // Add your API key here if needed for higher rate limits
   });
   const contractAddress = Address.parse(CONTRACT_ADDRESS);
 
@@ -29,6 +30,14 @@ export const HelloWorldPage: React.FC = () => {
       setIsLoading(true);
 
       console.log('[HelloWorld Debug] Calling contract methods on address:', CONTRACT_ADDRESS);
+
+      // Check if contract is deployed first
+      const contractState = await tonClient.getContractState(contractAddress);
+      console.log('[HelloWorld Debug] Contract state:', contractState);
+
+      if (contractState.state !== 'active') {
+        throw new Error(`Contract is not active. State: ${contractState.state}`);
+      }
 
       // Use TonClient to call contract get methods (matching TolkContracts wrapper)
       const counterResult = await tonClient.runMethod(contractAddress, "currentCounter");
@@ -240,6 +249,14 @@ export const HelloWorldPage: React.FC = () => {
         <div className="bg-[#3a3f47] rounded-lg p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">Contract Information</h2>
           <div className="space-y-2">
+            <div>
+              <span className="text-gray-400">Network:</span>
+              <p className="text-sm">
+                <span className={`inline-block px-2 py-1 rounded ${NETWORK === 'mainnet' ? 'bg-green-600' : 'bg-yellow-600'}`}>
+                  {NETWORK.toUpperCase()}
+                </span>
+              </p>
+            </div>
             <div>
               <span className="text-gray-400">Connected Wallet:</span>
               <p className="font-mono text-sm break-all">
