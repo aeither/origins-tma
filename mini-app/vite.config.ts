@@ -3,6 +3,7 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteTsConfigPaths from 'vite-tsconfig-paths'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { nitroV2Plugin } from '@tanstack/nitro-v2-vite-plugin'
 
 const config = defineConfig({
   plugins: [
@@ -12,6 +13,10 @@ const config = defineConfig({
     }),
     tailwindcss(),
     tanstackStart(),
+    nitroV2Plugin({ 
+      preset: 'vercel',
+      compatibilityDate: '2025-10-02' // Nitro compatibility date
+    }) as any, // Vercel deployment configuration
     react(),
   ],
   server: {
