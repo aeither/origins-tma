@@ -7,9 +7,58 @@ import { toNano, beginCell, TonClient, Address } from "@ton/ton";
 import { Link } from "@tanstack/react-router";
 import { CONTRACT_ADDRESS, NETWORK, TON_CENTER_ENDPOINTS } from "../config/consts";
 
+// USDT Jetton Master Contract Address
+const USDT_JETTON_MASTER = "EQAN__fVGmFXg15OtP7T2o4DfbhLDEIlYcU31QP20E3byY4J";
+
+// USDT has 6 decimals
+const USDT_DECIMALS = 6;
+
 // TestInvoice contract opcodes
 const Opcodes = {
   updateInvoice: 0x2,
+};
+
+// Jetton transfer opcodes
+const JettonOpcodes = {
+  transfer: 0xf8a7ea5,
+};
+
+// Helper function to get jetton wallet address for a specific user
+const getJettonWalletAddress = async (jettonMaster: string, ownerAddress: string, tonClient: TonClient): Promise<Address> => {
+  const jettonMasterAddr = Address.parse(jettonMaster);
+  const ownerAddr = Address.parse(ownerAddress);
+  
+  const result = await tonClient.runMethod(jettonMasterAddr, "get_wallet_address", [
+    { type: "slice", cell: beginCell().storeAddress(ownerAddr).endCell() }
+  ]);
+  
+  return result.stack.readAddress();
+};
+
+// Helper function to create jetton transfer message
+const createJettonTransferMessage = (
+  jettonAmount: bigint,
+  toAddress: Address,
+  responseAddress: Address,
+  forwardAmount: bigint = 1n // Small forward amount for notification
+) => {
+  const body = beginCell()
+    .storeUint(JettonOpcodes.transfer, 32) // op code
+    .storeUint(0, 64) // query id
+    .storeCoins(jettonAmount) // amount of jettons to transfer
+    .storeAddress(toAddress) // destination address
+    .storeAddress(responseAddress) // response address
+    .storeBit(false) // custom payload (null)
+    .storeCoins(forwardAmount) // forward ton amount
+    .storeBit(false) // forward payload (null for now)
+    .endCell();
+
+  return body.toBoc().toString("base64");
+};
+
+// Convert jetton units back to USDT amount (6 decimals)
+const fromJettonAmount = (jettonAmount: bigint): number => {
+  return Number(jettonAmount) / Math.pow(10, USDT_DECIMALS);
 };
 
 interface Invoice {
@@ -96,47 +145,73 @@ export const UpdateInvoicePage: React.FC = () => {
       }
     }
 
-    // Calculate total: invoice amount + transaction fee
-    const transactionFee = toNano("0.1");
-    const totalAmount = invoice.amount + transactionFee;
-    const invoiceAmountTON = Number(invoice.amount) / 1e9;
-    const totalAmountTON = Number(totalAmount) / 1e9;
+    // Calculate amounts for USDT transfer
+    const invoiceAmountUSDT = fromJettonAmount(invoice.amount);
 
     const confirmMessage = `Confirm payment:\n\n` +
-      `Invoice Amount: ${invoiceAmountTON} TON\n` +
-      `Transaction Fee: 0.1 TON\n` +
-      `Total: ${totalAmountTON} TON\n\n` +
-      `Payment will be sent to:\n${invoice.wallet.toString()}`;
+      `Invoice Amount: ${invoiceAmountUSDT} USDT\n` +
+      `Gas Fee: 0.15 TON\n\n` +
+      `USDT payment will be sent to:\n${invoice.wallet.toString()}`;
 
     if (!window.confirm(confirmMessage)) {
       return;
     }
 
     setIsLoading(true);
-    setStatus("📤 Preparing transaction...");
+    setStatus("📤 Preparing USDT transaction...");
 
     try {
-      // Build the message body
-      const body = beginCell()
+      // Initialize TON client
+      const tonClient = new TonClient({
+        endpoint: TON_CENTER_ENDPOINTS[NETWORK],
+      });
+
+      // Get the jetton wallet address for the current user
+      setStatus("🔍 Getting jetton wallet address...");
+      const senderJettonWallet = await getJettonWalletAddress(
+        USDT_JETTON_MASTER, 
+        wallet?.account.address || "", 
+        tonClient
+      );
+
+      // Create jetton transfer message
+      setStatus("📝 Creating jetton transfer...");
+      const jettonTransferPayload = createJettonTransferMessage(
+        invoice.amount, // amount in jetton units
+        invoice.wallet, // destination address
+        Address.parse(wallet?.account.address || "") // response address
+      );
+
+      // Also create contract update message
+      const contractUpdateBody = beginCell()
         .storeUint(Opcodes.updateInvoice, 32) // op code for updateInvoice
         .storeUint(0, 64) // query id
         .storeUint(invoice.invoiceId, 32) // invoice ID
         .endCell();
 
-      const message = {
-        address: CONTRACT_ADDRESS,
-        amount: totalAmount.toString(), // Invoice amount + transaction fee
-        payload: body.toBoc().toString("base64"),
-      };
+      const messages = [
+        // Send jetton transfer
+        {
+          address: senderJettonWallet.toString(),
+          amount: toNano("0.1").toString(), // Gas fee for jetton transfer
+          payload: jettonTransferPayload,
+        },
+        // Update contract
+        {
+          address: CONTRACT_ADDRESS,
+          amount: toNano("0.05").toString(), // Gas fee for contract update
+          payload: contractUpdateBody.toBoc().toString("base64"),
+        }
+      ];
 
       setStatus("⏳ Waiting for wallet approval...");
 
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 300, // 5 minutes
-        messages: [message],
+        messages: messages,
       });
 
-      setStatus(`✅ Payment sent! ${invoiceAmountTON} TON has been transferred to ${invoice.wallet.toString().slice(0, 8)}...`);
+      setStatus(`✅ Payment sent! ${invoiceAmountUSDT} USDT has been transferred to ${invoice.wallet.toString().slice(0, 8)}...`);
       setInvoiceId(""); // Clear the form
       setInvoice(null); // Clear the invoice
       
@@ -245,7 +320,7 @@ export const UpdateInvoicePage: React.FC = () => {
               <div>
                 <p className="text-xs text-gray-400 mb-1">Amount</p>
                 <p className="text-4xl font-bold text-[#20d9c5]">
-                  {Number(invoice.amount) / 1e9} TON
+                  {fromJettonAmount(invoice.amount)} USDT
                 </p>
               </div>
               <div>
@@ -276,7 +351,7 @@ export const UpdateInvoicePage: React.FC = () => {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-300">Invoice Amount:</span>
-                  <span className="font-bold text-lg">{Number(invoice.amount) / 1e9} TON</span>
+                  <span className="font-bold text-lg">{fromJettonAmount(invoice.amount)} USDT</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-300">Transaction Fee:</span>
@@ -285,7 +360,7 @@ export const UpdateInvoicePage: React.FC = () => {
                 <div className="border-t border-white/10 pt-3 flex justify-between items-center">
                   <span className="font-bold text-lg">Total:</span>
                   <span className="font-bold text-2xl text-[#20d9c5]">
-                    {(Number(invoice.amount) / 1e9 + 0.1).toFixed(2)} TON
+                    {fromJettonAmount(invoice.amount)} USDT + 0.15 TON gas
                   </span>
                 </div>
               </div>

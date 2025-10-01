@@ -3,9 +3,16 @@ import {
   useTonConnectUI,
   useTonWallet,
 } from "@tonconnect/ui-react";
-import { TonClient, Address, toNano, beginCell } from "@ton/ton";
+import { TonClient, toNano, beginCell } from "@ton/ton";
+import { Address } from "@ton/core";
 import { Link } from "@tanstack/react-router";
 import { CONTRACT_ADDRESS, NETWORK, TON_CENTER_ENDPOINTS, API_CONFIG } from "../config/consts";
+
+// USDT Jetton Master Contract Address
+const USDT_JETTON_MASTER = "EQAN__fVGmFXg15OtP7T2o4DfbhLDEIlYcU31QP20E3byY4J";
+
+// USDT has 6 decimals
+const USDT_DECIMALS = 9;
 
 interface Invoice {
   invoiceId: number;
@@ -20,6 +27,55 @@ interface Invoice {
 const Opcodes = {
   addInvoice: 0x1,
   updateInvoice: 0x2,
+};
+
+// Jetton transfer opcodes
+const JettonOpcodes = {
+  transfer: 0xf8a7ea5,
+};
+
+// Helper function to get jetton wallet address for a specific user
+const getJettonWalletAddress = async (jettonMaster: string, ownerAddress: string, tonClient: TonClient): Promise<Address> => {
+  const jettonMasterAddr = Address.parse(jettonMaster);
+  const ownerAddr = Address.parse(ownerAddress);
+  
+  const result = await tonClient.runMethod(jettonMasterAddr, "get_wallet_address", [
+    { type: "slice", cell: beginCell().storeAddress(ownerAddr).endCell() }
+  ]);
+  
+  return result.stack.readAddress();
+};
+
+// Helper function to create jetton transfer message
+const createJettonTransferMessage = (
+  jettonAmount: bigint,
+  toAddress: Address,
+  responseAddress: Address,
+  forwardAmount: bigint = 1n // Small forward amount for notification
+) => {
+  const body = beginCell()
+    .storeUint(JettonOpcodes.transfer, 32) // op code
+    .storeUint(0, 64) // query id
+    .storeCoins(jettonAmount) // amount of jettons to transfer
+    .storeAddress(toAddress) // destination address
+    .storeAddress(responseAddress) // response address
+    .storeBit(false) // custom payload (null)
+    .storeCoins(forwardAmount) // forward ton amount
+    .storeBit(false) // forward payload (null for now)
+    .endCell();
+
+  return body.toBoc().toString("base64");
+};
+
+// Convert USDT amount to jetton units (6 decimals)
+const toJettonAmount = (usdtAmount: string): bigint => {
+  const amount = parseFloat(usdtAmount);
+  return BigInt(Math.floor(amount * Math.pow(10, USDT_DECIMALS)));
+};
+
+// Convert jetton units back to USDT amount (6 decimals)
+const fromJettonAmount = (jettonAmount: bigint): number => {
+  return Number(jettonAmount) / Math.pow(10, USDT_DECIMALS);
 };
 
 export const CounterPage: React.FC = () => {
@@ -348,13 +404,13 @@ export const CounterPage: React.FC = () => {
       return;
     }
 
-    if (!newInvoiceDescription || !newInvoiceAmount || !newInvoiceWallet) {
+    if (!newInvoiceDescription || !newInvoiceAmount) {
       setStatus("Please fill in all invoice fields.");
       return;
     }
 
     if (newInvoiceDescription.length > 50) {
-      setStatus("Description too long (max 50 characters for better hashing).");
+      setStatus("Id too long.");
       return;
     }
 
@@ -362,19 +418,21 @@ export const CounterPage: React.FC = () => {
       setIsLoading(true);
       setStatus("Creating invoice...");
 
-      // Convert string inputs to proper types for FunC contract
-      const amountInNano = toNano(newInvoiceAmount);
+      // Convert USDT amount to jetton units (6 decimals)
+      const amountInJettonUnits = toJettonAmount(newInvoiceAmount);
       
       // Validate and parse wallet address
       let walletAddress;
       try {
-        walletAddress = Address.parse(newInvoiceWallet);
+        // Parse wallet address using the format '0:...' or regular address format
+        const walletToUse = newInvoiceWallet || wallet?.account.address || "";
+        walletAddress = Address.parse(walletToUse);
         console.log('[Invoice Debug] Parsed wallet address:', walletAddress.toString());
       } catch (addrError) {
-        throw new Error(`Invalid wallet address: ${newInvoiceWallet}`);
+        throw new Error(`Invalid wallet address: ${newInvoiceWallet || wallet?.account.address}`);
       }
       
-      const payload = encodeAddInvoiceMessage(newInvoiceDescription, amountInNano, walletAddress);
+      const payload = encodeAddInvoiceMessage(newInvoiceDescription, amountInJettonUnits, walletAddress);
       
       // Store the original description for UI display (by calculating the same hash)
       const descriptionBytes = new TextEncoder().encode(newInvoiceDescription);
@@ -474,17 +532,14 @@ export const CounterPage: React.FC = () => {
       }
     }
 
-    // Calculate total: invoice amount + transaction fee
-    const transactionFee = toNano("0.1");
-    const totalAmount = invoice.amount + transactionFee;
-    const invoiceAmountTON = Number(invoice.amount) / 1e9;
-    const totalAmountTON = Number(totalAmount) / 1e9;
-
+    // Calculate amounts for USDT transfer
+    const invoiceAmountUSDT = fromJettonAmount(invoice.amount);
+    const tonFeeForGas = toNano("0.1"); // TON needed for gas
+    
     const confirmMessage = `Mark invoice #${invoiceId} as paid?\n\n` +
-      `Invoice Amount: ${invoiceAmountTON} TON\n` +
-      `Transaction Fee: 0.1 TON\n` +
-      `Total: ${totalAmountTON} TON\n\n` +
-      `The invoice amount will be sent to:\n${invoice.wallet.toString()}`;
+      `Invoice Amount: ${invoiceAmountUSDT} USDT\n` +
+      `Gas Fee: 0.1 TON\n\n` +
+      `The USDT will be sent to:\n${invoice.wallet.toString()}`;
 
     if (!window.confirm(confirmMessage)) {
       return;
@@ -493,24 +548,48 @@ export const CounterPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const body = beginCell()
+      // First, get the jetton wallet address for the current user
+      const senderJettonWallet = await getJettonWalletAddress(
+        USDT_JETTON_MASTER, 
+        wallet?.account.address || "", 
+        tonClient
+      );
+
+      // Create jetton transfer message
+      const jettonTransferPayload = createJettonTransferMessage(
+        invoice.amount, // amount in jetton units
+        invoice.wallet, // destination address
+        Address.parse(wallet?.account.address || "") // response address
+      );
+
+      // Also create contract update message
+      const contractUpdateBody = beginCell()
         .storeUint(Opcodes.updateInvoice, 32) // op code for updateInvoice
         .storeUint(0, 64) // query id
         .storeUint(invoiceId, 32) // Pass the invoice ID as number
         .endCell();
 
-      const message = {
-        address: CONTRACT_ADDRESS,
-        amount: totalAmount.toString(), // Invoice amount + transaction fee
-        payload: body.toBoc().toString("base64"),
-      };
+      const messages = [
+        // Send jetton transfer
+        {
+          address: senderJettonWallet.toString(),
+          amount: tonFeeForGas.toString(), // Gas fee in TON
+          payload: jettonTransferPayload,
+        },
+        // Update contract
+        {
+          address: CONTRACT_ADDRESS,
+          amount: toNano("0.05").toString(), // Small amount for contract update
+          payload: contractUpdateBody.toBoc().toString("base64"),
+        }
+      ];
 
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 300, // 5 minutes
-        messages: [message],
+        messages: messages,
       });
 
-      alert(`Invoice update sent! ${invoiceAmountTON} TON will be transferred to the wallet.`);
+      alert(`Invoice update sent! ${invoiceAmountUSDT} USDT will be transferred to the wallet.`);
       // Refresh data after update
       setTimeout(() => fetchContractData(), 3000);
     } catch (error) {
@@ -549,7 +628,7 @@ export const CounterPage: React.FC = () => {
             </div>
           </div>
           <p className="text-gray-300 mb-6 text-lg">
-            Create and manage invoices for your clients on TON blockchain
+            Create and manage USDT invoices for your clients on TON blockchain
           </p>
         </div>
 
@@ -614,18 +693,18 @@ export const CounterPage: React.FC = () => {
           </div>
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Invoice Id</label>
               <input
                 type="text"
                 value={newInvoiceDescription}
                 onChange={(e) => setNewInvoiceDescription(e.target.value)}
-                placeholder="Invoice description (max 50 characters)"
+                placeholder="Invoice id"
                 maxLength={32}
                 className="w-full glass-input text-white px-4 py-3 rounded-xl transition-all"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Amount (TON)</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Amount (USDT)</label>
               <input
                 type="number"
                 value={newInvoiceAmount}
@@ -636,25 +715,21 @@ export const CounterPage: React.FC = () => {
                 className="w-full glass-input text-white px-4 py-3 rounded-xl transition-all"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Client Wallet Address</label>
-              <input
-                type="text"
-                value={newInvoiceWallet}
-                onChange={(e) => setNewInvoiceWallet(e.target.value)}
-                placeholder="EQD..."
-                className="w-full glass-input text-white px-4 py-3 rounded-xl font-mono text-sm transition-all"
-              />
-            </div>
+            {/* Hidden input for wallet address - uses connected wallet automatically */}
+            <input
+              type="hidden"
+              value={newInvoiceWallet || (wallet?.account.address ? Address.parse(wallet.account.address).toString() : "")}
+              onChange={(e) => setNewInvoiceWallet(e.target.value)}
+            />
             <button
               onClick={onAddInvoiceClick}
-              disabled={!wallet || isLoading || !newInvoiceDescription || !newInvoiceAmount || !newInvoiceWallet}
+              disabled={!wallet || isLoading || !newInvoiceDescription || !newInvoiceAmount}
               className="w-full glass-button disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl"
             >
               {isLoading ? "Processing..." : "Create Invoice"}
             </button>
             <p className="text-xs text-gray-400 text-center">
-              Gas fee: ~0.05 TON
+              Gas fee: ~0.15 TON (for USDT transfer + contract update)
             </p>
           </div>
         </div>
@@ -677,12 +752,12 @@ export const CounterPage: React.FC = () => {
                   
                   <div className="space-y-3">
                     <div>
-                      <p className="text-xs text-gray-400 mb-1">Description</p>
+                      <p className="text-xs text-gray-400 mb-1">Id</p>
                       {invoiceItem.descriptionText ? (
                         <p className="break-words text-sm text-gray-200">{invoiceItem.descriptionText}</p>
                       ) : (
                         <p className="break-words text-sm font-mono text-gray-500">
-                          Hash: 0x{invoiceItem.description.toString(16)}
+                          {invoiceItem.description.toString(16)}
                         </p>
                       )}
                     </div>
@@ -694,7 +769,7 @@ export const CounterPage: React.FC = () => {
                     
                     <div>
                       <p className="text-xs text-gray-400 mb-1">Amount</p>
-                      <p className="font-bold text-2xl text-[#20d9c5]">{Number(invoiceItem.amount) / 1e9} TON</p>
+                      <p className="font-bold text-2xl text-[#20d9c5]">{fromJettonAmount(invoiceItem.amount)} USDT</p>
                     </div>
                   </div>
                   
@@ -704,7 +779,7 @@ export const CounterPage: React.FC = () => {
                       onClick={() => onUpdateInvoiceClick(invoiceItem.invoiceId)}
                       disabled={isLoading}
                     >
-                      Mark as Paid
+                      Pay Invoice
                     </button>
                   )}
                 </div>

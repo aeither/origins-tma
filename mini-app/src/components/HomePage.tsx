@@ -12,7 +12,7 @@ export const HomePage: React.FC = () => {
             <br />Pay Faster
           </h1>
           <p className="text-xl text-gray-200 mb-10 max-w-2xl mx-auto">
-            Simplify invoicing with our secure, easy-to-use platform powered by TON blockchain
+            Simplify invoicing with USDT payments on TON blockchain
           </p>
           <Link
             to="/counter"
@@ -93,7 +93,7 @@ export const HomePage: React.FC = () => {
                 <p className="text-gray-300 text-base mb-4">Create and send invoices to your clients</p>
                 <ul className="text-left text-gray-400 text-sm space-y-2">
                   <li>✓ Fill invoice details</li>
-                  <li>✓ Set amount in TON</li>
+                  <li>✓ Set amount in USDT</li>
                   <li>✓ Add client wallet address</li>
                   <li>✓ Track invoice status</li>
                 </ul>
@@ -114,7 +114,7 @@ export const HomePage: React.FC = () => {
                   <li>✓ Enter invoice ID</li>
                   <li>✓ Review invoice details</li>
                   <li>✓ Confirm payment amount</li>
-                  <li>✓ Pay with TON wallet</li>
+                  <li>✓ Pay with USDT</li>
                 </ul>
               </div>
             </Link>
