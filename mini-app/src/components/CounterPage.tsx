@@ -6,9 +6,7 @@ import {
 } from "@tonconnect/ui-react";
 import { TonClient, Address, toNano, beginCell } from "@ton/ton";
 import { Link } from "@tanstack/react-router";
-
-// Update this with your deployed counter contract address
-const CONTRACT_ADDRESS = "EQDmj9bqTleRjqQ2PpuLEwhFzNJPL2_4SxPQF2l3AkAwGEtn";
+import { CONTRACT_ADDRESS } from "../config/consts";
 
 export const CounterPage: React.FC = () => {
   const [tonConnectUI] = useTonConnectUI();

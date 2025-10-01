@@ -12,13 +12,17 @@ export const TonConnectDiagnostics: React.FC = () => {
   useEffect(() => {
     const runDiagnostics = async () => {
       const manifestUrl = getManifestUrl();
-      const isValid = await validateManifestUrl(manifestUrl);
-      setManifestValid(isValid);
+
+      // Only validate manifest once when component mounts
+      if (manifestValid === null) {
+        const isValid = await validateManifestUrl(manifestUrl);
+        setManifestValid(isValid);
+      }
 
       // Gather diagnostic information
       const diagnosticData = {
         manifestUrl,
-        manifestValid: isValid,
+        manifestValid: manifestValid !== null ? manifestValid : 'checking...',
         walletConnected: !!wallet,
         walletAddress: wallet?.account?.address,
         walletChain: wallet?.account?.chain,
@@ -55,7 +59,7 @@ export const TonConnectDiagnostics: React.FC = () => {
     };
 
     runDiagnostics();
-  }, [tonConnectUI, wallet]);
+  }, [tonConnectUI.connected, wallet?.account?.address, manifestValid]);
 
   const formatValue = (value: any): string => {
     if (value === null || value === undefined) return 'null';

@@ -6,8 +6,7 @@ import {
 } from "@tonconnect/ui-react";
 import { TonClient, Address, toNano } from "@ton/ton";
 import { Link } from "@tanstack/react-router";
-
-const CONTRACT_ADDRESS = "EQDmj9bqTleRjqQ2PpuLEwhFzNJPL2_4SxPQF2l3AkAwGEtn";
+import { CONTRACT_ADDRESS } from "../config/consts";
 
 export const HelloWorldPage: React.FC = () => {
   const [tonConnectUI] = useTonConnectUI();
