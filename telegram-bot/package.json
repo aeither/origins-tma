@@ -1,5 +1,5 @@
 {
-  "name": "ton-tma-bot",
+  "name": "telepay-bot",
   "module": "index.ts",
   "type": "module",
   "private": true,
