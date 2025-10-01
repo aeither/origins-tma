@@ -5,7 +5,7 @@ const DEV_MINI_APP_URL = "https://basically-enough-clam.ngrok-free.app";
 const _PROD_MINI_APP_URL = "https://telepay-bot.fulin.workers.dev"; // TODO: Update with actual production URL
 
 // Use development URL for now - can be changed to PROD_MINI_APP_URL for production
-const CURRENT_MINI_APP_URL = DEV_MINI_APP_URL;
+const CURRENT_MINI_APP_URL = _PROD_MINI_APP_URL;
 
 export function createBot(token: string) {
   // Create bot instance
