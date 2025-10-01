@@ -1,0 +1,8 @@
+Privacy Policy for TonTip Mini App
+
+1. This app does not collect personal data.
+2. Wallet connections are handled by TonConnect.
+3. No data is stored on our servers.
+4. All interactions are client-side only.
+
+Last updated: July 16, 2025

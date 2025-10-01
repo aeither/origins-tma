@@ -1,0 +1,8 @@
+Terms of Use for TonTip Mini App
+
+1. This is a demo application for connecting TON wallets.
+2. Use at your own risk.
+3. No warranties provided.
+4. For testing purposes only.
+
+Last updated: July 16, 2025
