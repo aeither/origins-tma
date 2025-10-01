@@ -13,7 +13,6 @@ import { createServerRootRoute } from '@tanstack/react-start/server'
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RewardContractRouteImport } from './routes/reward-contract'
 import { Route as PlaygroundRouteImport } from './routes/playground'
-import { Route as HelloWorldRouteImport } from './routes/hello-world'
 import { Route as CounterRouteImport } from './routes/counter'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo.start.server-funcs'
@@ -30,11 +29,6 @@ const RewardContractRoute = RewardContractRouteImport.update({
 const PlaygroundRoute = PlaygroundRouteImport.update({
   id: '/playground',
   path: '/playground',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HelloWorldRoute = HelloWorldRouteImport.update({
-  id: '/hello-world',
-  path: '/hello-world',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CounterRoute = CounterRouteImport.update({
@@ -66,7 +60,6 @@ const ApiDemoNamesServerRoute = ApiDemoNamesServerRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/counter': typeof CounterRoute
-  '/hello-world': typeof HelloWorldRoute
   '/playground': typeof PlaygroundRoute
   '/reward-contract': typeof RewardContractRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
@@ -75,7 +68,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/counter': typeof CounterRoute
-  '/hello-world': typeof HelloWorldRoute
   '/playground': typeof PlaygroundRoute
   '/reward-contract': typeof RewardContractRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
@@ -85,7 +77,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/counter': typeof CounterRoute
-  '/hello-world': typeof HelloWorldRoute
   '/playground': typeof PlaygroundRoute
   '/reward-contract': typeof RewardContractRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
@@ -96,7 +87,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/counter'
-    | '/hello-world'
     | '/playground'
     | '/reward-contract'
     | '/demo/start/api-request'
@@ -105,7 +95,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/counter'
-    | '/hello-world'
     | '/playground'
     | '/reward-contract'
     | '/demo/start/api-request'
@@ -114,7 +103,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/counter'
-    | '/hello-world'
     | '/playground'
     | '/reward-contract'
     | '/demo/start/api-request'
@@ -124,7 +112,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CounterRoute: typeof CounterRoute
-  HelloWorldRoute: typeof HelloWorldRoute
   PlaygroundRoute: typeof PlaygroundRoute
   RewardContractRoute: typeof RewardContractRoute
   DemoStartApiRequestRoute: typeof DemoStartApiRequestRoute
@@ -166,13 +153,6 @@ declare module '@tanstack/react-router' {
       path: '/playground'
       fullPath: '/playground'
       preLoaderRoute: typeof PlaygroundRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hello-world': {
-      id: '/hello-world'
-      path: '/hello-world'
-      fullPath: '/hello-world'
-      preLoaderRoute: typeof HelloWorldRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/counter': {
@@ -220,7 +200,6 @@ declare module '@tanstack/react-start/server' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CounterRoute: CounterRoute,
-  HelloWorldRoute: HelloWorldRoute,
   PlaygroundRoute: PlaygroundRoute,
   RewardContractRoute: RewardContractRoute,
   DemoStartApiRequestRoute: DemoStartApiRequestRoute,

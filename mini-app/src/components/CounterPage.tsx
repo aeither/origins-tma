@@ -6,7 +6,7 @@ import {
 } from "@tonconnect/ui-react";
 import { TonClient, Address, toNano, beginCell } from "@ton/ton";
 import { Link } from "@tanstack/react-router";
-import { CONTRACT_ADDRESS } from "../config/consts";
+import { CONTRACT_ADDRESS, NETWORK, TON_CENTER_ENDPOINTS } from "../config/consts";
 
 export const CounterPage: React.FC = () => {
   const [tonConnectUI] = useTonConnectUI();
@@ -18,7 +18,7 @@ export const CounterPage: React.FC = () => {
 
   // Initialize TON client for reading contract data
   const tonClient = new TonClient({
-    endpoint: "https://toncenter.com/api/v2/jsonRPC"
+    endpoint: TON_CENTER_ENDPOINTS[NETWORK],
   });
   const contractAddress = Address.parse(CONTRACT_ADDRESS);
 

@@ -8,7 +8,7 @@ export const updateManifestForCurrentDomain = () => {
   if (currentOrigin !== 'https://basically-enough-clam.ngrok-free.app') {
     const manifestData = {
       url: currentOrigin,
-      name: "TonTip Mini App",
+      name: "Origins Mini App",
       iconUrl: `${currentOrigin}/icon-192x192.png`,
       termsOfUseUrl: "https://ton.org/terms",
       privacyPolicyUrl: "https://ton.org/privacy"

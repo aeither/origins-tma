@@ -64,7 +64,7 @@ export function TonWalletConnection() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#282c34] text-white p-4">
       <div className="max-w-md w-full bg-[#3a3f47] rounded-lg p-6 shadow-lg">
-        <h1 className="text-2xl font-bold mb-6 text-center">TonTip Mini App</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center">Origins Mini App</h1>
         
         {webApp && (
           <div className="mb-4 text-sm text-gray-300">
@@ -94,22 +94,22 @@ export function TonWalletConnection() {
             
             {/* Navigation to app features */}
             <div className="bg-[#4a5058] rounded-lg p-4">
-              <h3 className="text-lg font-semibold mb-3">TonTip Features</h3>
+              <h3 className="text-lg font-semibold mb-3">Origins Features</h3>
               <div className="space-y-2">
-                <Link 
-                  to="/" 
+                <Link
+                  to="/"
                   className="block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded transition-colors text-center"
                 >
                   📚 Home
                 </Link>
-                <Link 
-                  to="/hello-world" 
+                <Link
+                  to="/counter"
                   className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition-colors text-center"
                 >
-                  HelloWorld Contract
+                  Counter Contract
                 </Link>
-                <Link 
-                  to="/reward-contract" 
+                <Link
+                  to="/reward-contract"
                   className="block w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded transition-colors text-center"
                 >
                   Reward Contract
