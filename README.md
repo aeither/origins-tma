@@ -309,3 +309,4 @@ This starter is designed to help you quickly build and deploy TON Telegram Mini 
 ---
 
 Built with ❤️ for the TON ecosystem
+
