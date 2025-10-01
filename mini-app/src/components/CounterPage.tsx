@@ -29,11 +29,11 @@ export const CounterPage: React.FC = () => {
 
       console.log('[Counter Debug] Calling contract methods on address:', CONTRACT_ADDRESS);
 
-      // Use TonClient to call contract get methods
-      const counterResult = await tonClient.runMethod(contractAddress, "get_counter");
+      // Use TonClient to call contract get methods (matching TolkContracts wrapper)
+      const counterResult = await tonClient.runMethod(contractAddress, "currentCounter");
       console.log('[Counter Debug] Counter result:', counterResult);
 
-      const versionResult = await tonClient.runMethod(contractAddress, "get_version");
+      const versionResult = await tonClient.runMethod(contractAddress, "initialId");
       console.log('[Counter Debug] Version result:', versionResult);
 
       const counterValue = Number(counterResult.stack.readNumber());
@@ -65,16 +65,19 @@ export const CounterPage: React.FC = () => {
   // Helper function to encode Increment message payload
   const encodeIncrementMessage = (): string => {
     try {
-      // Create a cell with op::increment (1) and query_id (0)
+      // Create a cell with OP_INCREASE opcode (matching TolkContracts wrapper)
       const body = beginCell()
-        .storeUint(1, 32) // op::increment
+        .storeUint(0x7e8764ef, 32) // OP_INCREASE opcode
         .storeUint(0, 64) // query_id
+        .storeUint(1, 32) // increaseBy amount
         .endCell();
 
       const base64 = body.toBoc().toString('base64');
 
       console.log('[Counter Debug] Increment payload encoding:', {
-        opcode: 1,
+        opcode: '0x7e8764ef',
+        queryId: 0,
+        increaseBy: 1,
         base64
       });
 

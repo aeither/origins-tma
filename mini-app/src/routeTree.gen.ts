@@ -16,8 +16,6 @@ import { Route as PlaygroundRouteImport } from './routes/playground'
 import { Route as HelloWorldRouteImport } from './routes/hello-world'
 import { Route as CounterRouteImport } from './routes/counter'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as QuizQuizIdRouteImport } from './routes/quiz.$quizId'
-import { Route as QuizQuizIdClaimRouteImport } from './routes/quiz.$quizId.claim'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo.start.server-funcs'
 import { Route as DemoStartApiRequestRouteImport } from './routes/demo.start.api-request'
 import { ServerRoute as ApiDemoNamesServerRouteImport } from './routes/api.demo-names'
@@ -49,16 +47,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const QuizQuizIdRoute = QuizQuizIdRouteImport.update({
-  id: '/quiz/$quizId',
-  path: '/quiz/$quizId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const QuizQuizIdClaimRoute = QuizQuizIdClaimRouteImport.update({
-  id: '/claim',
-  path: '/claim',
-  getParentRoute: () => QuizQuizIdRoute,
-} as any)
 const DemoStartServerFuncsRoute = DemoStartServerFuncsRouteImport.update({
   id: '/demo/start/server-funcs',
   path: '/demo/start/server-funcs',
@@ -81,10 +69,8 @@ export interface FileRoutesByFullPath {
   '/hello-world': typeof HelloWorldRoute
   '/playground': typeof PlaygroundRoute
   '/reward-contract': typeof RewardContractRoute
-  '/quiz/$quizId': typeof QuizQuizIdRouteWithChildren
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
-  '/quiz/$quizId/claim': typeof QuizQuizIdClaimRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -92,10 +78,8 @@ export interface FileRoutesByTo {
   '/hello-world': typeof HelloWorldRoute
   '/playground': typeof PlaygroundRoute
   '/reward-contract': typeof RewardContractRoute
-  '/quiz/$quizId': typeof QuizQuizIdRouteWithChildren
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
-  '/quiz/$quizId/claim': typeof QuizQuizIdClaimRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,10 +88,8 @@ export interface FileRoutesById {
   '/hello-world': typeof HelloWorldRoute
   '/playground': typeof PlaygroundRoute
   '/reward-contract': typeof RewardContractRoute
-  '/quiz/$quizId': typeof QuizQuizIdRouteWithChildren
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
-  '/quiz/$quizId/claim': typeof QuizQuizIdClaimRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -117,10 +99,8 @@ export interface FileRouteTypes {
     | '/hello-world'
     | '/playground'
     | '/reward-contract'
-    | '/quiz/$quizId'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
-    | '/quiz/$quizId/claim'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -128,10 +108,8 @@ export interface FileRouteTypes {
     | '/hello-world'
     | '/playground'
     | '/reward-contract'
-    | '/quiz/$quizId'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
-    | '/quiz/$quizId/claim'
   id:
     | '__root__'
     | '/'
@@ -139,10 +117,8 @@ export interface FileRouteTypes {
     | '/hello-world'
     | '/playground'
     | '/reward-contract'
-    | '/quiz/$quizId'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
-    | '/quiz/$quizId/claim'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -151,7 +127,6 @@ export interface RootRouteChildren {
   HelloWorldRoute: typeof HelloWorldRoute
   PlaygroundRoute: typeof PlaygroundRoute
   RewardContractRoute: typeof RewardContractRoute
-  QuizQuizIdRoute: typeof QuizQuizIdRouteWithChildren
   DemoStartApiRequestRoute: typeof DemoStartApiRequestRoute
   DemoStartServerFuncsRoute: typeof DemoStartServerFuncsRoute
 }
@@ -214,20 +189,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/quiz/$quizId': {
-      id: '/quiz/$quizId'
-      path: '/quiz/$quizId'
-      fullPath: '/quiz/$quizId'
-      preLoaderRoute: typeof QuizQuizIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/quiz/$quizId/claim': {
-      id: '/quiz/$quizId/claim'
-      path: '/claim'
-      fullPath: '/quiz/$quizId/claim'
-      preLoaderRoute: typeof QuizQuizIdClaimRouteImport
-      parentRoute: typeof QuizQuizIdRoute
-    }
     '/demo/start/server-funcs': {
       id: '/demo/start/server-funcs'
       path: '/demo/start/server-funcs'
@@ -256,25 +217,12 @@ declare module '@tanstack/react-start/server' {
   }
 }
 
-interface QuizQuizIdRouteChildren {
-  QuizQuizIdClaimRoute: typeof QuizQuizIdClaimRoute
-}
-
-const QuizQuizIdRouteChildren: QuizQuizIdRouteChildren = {
-  QuizQuizIdClaimRoute: QuizQuizIdClaimRoute,
-}
-
-const QuizQuizIdRouteWithChildren = QuizQuizIdRoute._addFileChildren(
-  QuizQuizIdRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CounterRoute: CounterRoute,
   HelloWorldRoute: HelloWorldRoute,
   PlaygroundRoute: PlaygroundRoute,
   RewardContractRoute: RewardContractRoute,
-  QuizQuizIdRoute: QuizQuizIdRouteWithChildren,
   DemoStartApiRequestRoute: DemoStartApiRequestRoute,
   DemoStartServerFuncsRoute: DemoStartServerFuncsRoute,
 }

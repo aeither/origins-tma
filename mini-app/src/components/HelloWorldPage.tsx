@@ -4,7 +4,7 @@ import {
   useTonConnectUI,
   useTonWallet,
 } from "@tonconnect/ui-react";
-import { TonClient, Address, toNano } from "@ton/ton";
+import { TonClient, Address, toNano, beginCell } from "@ton/ton";
 import { Link } from "@tanstack/react-router";
 import { CONTRACT_ADDRESS } from "../config/consts";
 
@@ -27,21 +27,21 @@ export const HelloWorldPage: React.FC = () => {
     console.log('[HelloWorld Debug] Fetching contract data...');
     try {
       setIsLoading(true);
-      
+
       console.log('[HelloWorld Debug] Calling contract methods on address:', CONTRACT_ADDRESS);
-      
-      // Use TonClient to call contract get methods
-      const counterResult = await tonClient.runMethod(contractAddress, "counter");
+
+      // Use TonClient to call contract get methods (matching TolkContracts wrapper)
+      const counterResult = await tonClient.runMethod(contractAddress, "currentCounter");
       console.log('[HelloWorld Debug] Counter result:', counterResult);
-      
-      const idResult = await tonClient.runMethod(contractAddress, "id");
+
+      const idResult = await tonClient.runMethod(contractAddress, "initialId");
       console.log('[HelloWorld Debug] ID result:', idResult);
-      
+
       const counterValue = Number(counterResult.stack.readNumber());
       const idValue = Number(idResult.stack.readNumber());
-      
+
       console.log('[HelloWorld Debug] Parsed values:', { counter: counterValue, id: idValue });
-      
+
       setCounter(counterValue);
       setId(idValue);
       setStatus("Contract data loaded successfully");
@@ -63,32 +63,25 @@ export const HelloWorldPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Helper function to encode Add message payload
+  // Helper function to encode Increase message payload
   const encodeAddMessage = (amount: number): string => {
     try {
-      // Create a simple payload for Add message
-      // Add message opcode: 2278832834 (0x87ea83e2)
-      const buffer = new ArrayBuffer(8); // 4 bytes for opcode + 4 bytes for amount
-      const view = new DataView(buffer);
-      
-      // Write opcode (big endian)
-      view.setUint32(0, 2278832834, false);
-      // Write amount (big endian)  
-      view.setUint32(4, amount, false);
-      
-      // Convert to base64
-      const uint8Array = new Uint8Array(buffer);
-      const base64 = btoa(String.fromCharCode(...uint8Array));
-      
+      // Create a cell with OP_INCREASE opcode (matching TolkContracts wrapper)
+      const body = beginCell()
+        .storeUint(0x7e8764ef, 32) // OP_INCREASE opcode
+        .storeUint(0, 64) // query_id
+        .storeUint(amount, 32) // increaseBy amount
+        .endCell();
+
+      const base64 = body.toBoc().toString('base64');
+
       console.log('[HelloWorld Debug] Payload encoding:', {
         amount,
-        opcode: 2278832834,
-        opcodeHex: '0x87ea83e2',
-        bufferLength: buffer.byteLength,
-        uint8Array: Array.from(uint8Array),
+        opcode: '0x7e8764ef',
+        queryId: 0,
         base64
       });
-      
+
       return base64;
     } catch (error) {
       console.error('[HelloWorld Debug] Payload encoding failed:', error);
