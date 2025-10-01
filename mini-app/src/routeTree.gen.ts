@@ -11,6 +11,7 @@
 import { createServerRootRoute } from '@tanstack/react-start/server'
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UpdateInvoiceRouteImport } from './routes/update-invoice'
 import { Route as RewardContractRouteImport } from './routes/reward-contract'
 import { Route as PlaygroundRouteImport } from './routes/playground'
 import { Route as CounterRouteImport } from './routes/counter'
@@ -21,6 +22,11 @@ import { ServerRoute as ApiDemoNamesServerRouteImport } from './routes/api.demo-
 
 const rootServerRouteImport = createServerRootRoute()
 
+const UpdateInvoiceRoute = UpdateInvoiceRouteImport.update({
+  id: '/update-invoice',
+  path: '/update-invoice',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RewardContractRoute = RewardContractRouteImport.update({
   id: '/reward-contract',
   path: '/reward-contract',
@@ -62,6 +68,7 @@ export interface FileRoutesByFullPath {
   '/counter': typeof CounterRoute
   '/playground': typeof PlaygroundRoute
   '/reward-contract': typeof RewardContractRoute
+  '/update-invoice': typeof UpdateInvoiceRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
 }
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/counter': typeof CounterRoute
   '/playground': typeof PlaygroundRoute
   '/reward-contract': typeof RewardContractRoute
+  '/update-invoice': typeof UpdateInvoiceRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
 }
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/counter': typeof CounterRoute
   '/playground': typeof PlaygroundRoute
   '/reward-contract': typeof RewardContractRoute
+  '/update-invoice': typeof UpdateInvoiceRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
 }
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/counter'
     | '/playground'
     | '/reward-contract'
+    | '/update-invoice'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
   fileRoutesByTo: FileRoutesByTo
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/counter'
     | '/playground'
     | '/reward-contract'
+    | '/update-invoice'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
   id:
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/counter'
     | '/playground'
     | '/reward-contract'
+    | '/update-invoice'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
   fileRoutesById: FileRoutesById
@@ -114,6 +126,7 @@ export interface RootRouteChildren {
   CounterRoute: typeof CounterRoute
   PlaygroundRoute: typeof PlaygroundRoute
   RewardContractRoute: typeof RewardContractRoute
+  UpdateInvoiceRoute: typeof UpdateInvoiceRoute
   DemoStartApiRequestRoute: typeof DemoStartApiRequestRoute
   DemoStartServerFuncsRoute: typeof DemoStartServerFuncsRoute
 }
@@ -141,6 +154,13 @@ export interface RootServerRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/update-invoice': {
+      id: '/update-invoice'
+      path: '/update-invoice'
+      fullPath: '/update-invoice'
+      preLoaderRoute: typeof UpdateInvoiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reward-contract': {
       id: '/reward-contract'
       path: '/reward-contract'
@@ -202,6 +222,7 @@ const rootRouteChildren: RootRouteChildren = {
   CounterRoute: CounterRoute,
   PlaygroundRoute: PlaygroundRoute,
   RewardContractRoute: RewardContractRoute,
+  UpdateInvoiceRoute: UpdateInvoiceRoute,
   DemoStartApiRequestRoute: DemoStartApiRequestRoute,
   DemoStartServerFuncsRoute: DemoStartServerFuncsRoute,
 }

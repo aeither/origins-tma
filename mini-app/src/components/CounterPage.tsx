@@ -6,19 +6,46 @@ import {
 } from "@tonconnect/ui-react";
 import { TonClient, Address, toNano, beginCell } from "@ton/ton";
 import { Link } from "@tanstack/react-router";
-import { CONTRACT_ADDRESS, NETWORK, TON_CENTER_ENDPOINTS } from "../config/consts";
+import { CONTRACT_ADDRESS, NETWORK, TON_CENTER_ENDPOINTS, API_CONFIG } from "../config/consts";
+
+interface Invoice {
+  invoiceId: number;
+  description: bigint; // Hash of the original description string (uint64) - stored on blockchain
+  descriptionText?: string; // Original description text (stored locally for UI display)
+  amount: bigint;
+  wallet: Address;
+  paid: boolean;
+}
+
+// TestInvoice contract opcodes (matching the FunC contract)
+const Opcodes = {
+  addInvoice: 0x1,
+  updateInvoice: 0x2,
+};
 
 export const CounterPage: React.FC = () => {
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
-  const [counter, setCounter] = useState<number | null>(null);
   const [version, setVersion] = useState<number | null>(null);
   const [status, setStatus] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Invoice-related state
+  const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
+  const [invoiceCount, setInvoiceCount] = useState<number>(0);
+  const [nextInvoiceId, setNextInvoiceId] = useState<number>(0);
+  // Map to store original descriptions by hash (for UI display)
+  const [descriptionMap, setDescriptionMap] = useState<Map<string, string>>(new Map());
+  
+  // Form state for new invoice
+  const [newInvoiceDescription, setNewInvoiceDescription] = useState("");
+  const [newInvoiceAmount, setNewInvoiceAmount] = useState("");
+  const [newInvoiceWallet, setNewInvoiceWallet] = useState("");
 
   // Track if a fetch is in progress to prevent overlapping requests
   const isFetchingRef = useRef(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastFetchTimeRef = useRef<number>(0);
 
   // Initialize TON client for reading contract data
   const tonClient = new TonClient({
@@ -26,40 +53,199 @@ export const CounterPage: React.FC = () => {
   });
   const contractAddress = Address.parse(CONTRACT_ADDRESS);
 
+  // Rate limiting helper using config constants
+  const { RATE_LIMIT_DELAY, MAX_RETRIES, RETRY_DELAY, POLLING_INTERVAL } = API_CONFIG;
+
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const fetchContractDataWithRetry = async (retryCount = 0): Promise<void> => {
+    try {
+      console.log('[Contract Debug] Calling TestInvoice contract methods on address:', CONTRACT_ADDRESS);
+      console.log('[Contract Debug] Contract address details:', {
+        raw: CONTRACT_ADDRESS,
+        parsed: contractAddress.toString(),
+        workchain: contractAddress.workChain,
+        hash: contractAddress.hash.toString('hex')
+      });
+      
+      // Clear previous data
+      setAllInvoices([]);
+      
+      // Fetch invoice data from TestInvoice FunC contract
+      let invoiceCountValue = 0;
+      let nextInvoiceIdValue = 0;
+      let latestInvoice = null;
+      let fetchedInvoicesCount = 0;
+
+      try {
+        // Step 1: Get invoice count
+        console.log('[Contract Debug] Fetching invoice count...');
+        const invoiceCountResult = await tonClient.runMethod(contractAddress, "get_invoice_count");
+        invoiceCountValue = Number(invoiceCountResult.stack.readNumber());
+        console.log('[Contract Debug] Found', invoiceCountValue, 'invoices');
+        
+        // Debug: Check if this is a new contract or if it has any existing data
+        if (invoiceCountValue === 0) {
+          console.log('[Contract Debug] Contract has no invoices - this might be a fresh deployment or the add_invoice method is not working');
+        }
+        
+        await delay(RATE_LIMIT_DELAY);
+
+        // Step 2: Get next invoice ID to know the range
+        if (invoiceCountValue > 0) {
+          console.log('[Contract Debug] Fetching next invoice ID...');
+          const nextInvoiceIdResult = await tonClient.runMethod(contractAddress, "get_next_invoice_id");
+          nextInvoiceIdValue = Number(nextInvoiceIdResult.stack.readNumber());
+          console.log('[Contract Debug] Next invoice ID:', nextInvoiceIdValue);
+          await delay(RATE_LIMIT_DELAY);
+        }
+
+        // Step 3: Fetch all invoices individually from last to first (most recent first)
+        if (invoiceCountValue > 0) {
+          console.log('[Contract Debug] Fetching invoices from last to first...');
+          const allInvoices: Invoice[] = [];
+          
+          // Fetch from (nextInvoiceId - 1) down to 0 to get newest first
+          let consecutiveErrors = 0;
+          const maxConsecutiveErrors = 3;
+          
+          for (let i = nextInvoiceIdValue - 1; i >= 0; i--) {
+            try {
+              console.log(`[Contract Debug] Fetching invoice ID ${i}...`);
+              setStatus(`Loading invoices... (${nextInvoiceIdValue - i}/${invoiceCountValue}) - newest first`);
+              
+              const invoiceResult = await tonClient.runMethod(contractAddress, "get_invoice", [
+                { type: "int", value: BigInt(i) }
+              ]);
+              
+              if (invoiceResult.stack.remaining >= 5) {
+                // Read in correct order: invoiceId, description, amount, wallet, paid
+                const invoiceId = Number(invoiceResult.stack.readNumber());
+                const descriptionHash = invoiceResult.stack.readBigNumber();
+                const hashKey = descriptionHash.toString(16);
+                
+                const invoice: Invoice = {
+                  invoiceId: invoiceId,
+                  description: descriptionHash,
+                  descriptionText: descriptionMap.get(hashKey), // Include original text if available
+                  amount: invoiceResult.stack.readBigNumber(),
+                  wallet: invoiceResult.stack.readAddress(),
+                  paid: invoiceResult.stack.readNumber() === 1
+                };
+                
+                allInvoices.push(invoice);
+                console.log(`[Contract Debug] Successfully fetched invoice ID ${i}:`, invoice);
+                consecutiveErrors = 0; // Reset error count on success
+                
+                // Set the first (newest) invoice as the displayed invoice
+                if (allInvoices.length === 1) {
+                  latestInvoice = invoice;
+                }
+              }
+              
+              // Wait between each invoice fetch to avoid rate limiting
+              if (i > 0) {
+                await delay(RATE_LIMIT_DELAY);
+              }
+              
+            } catch (invoiceError) {
+              console.log(`[Contract Debug] Error getting invoice ${i}:`, invoiceError);
+              consecutiveErrors++;
+              
+              // If too many consecutive errors, break to avoid wasting API calls
+              if (consecutiveErrors >= maxConsecutiveErrors) {
+                console.log(`[Contract Debug] Too many consecutive errors (${consecutiveErrors}), stopping fetch`);
+                setStatus(`Stopped fetching after ${consecutiveErrors} consecutive errors. Got ${allInvoices.length} invoices.`);
+                break;
+              }
+              
+              // If we hit rate limits, extend the delay
+              const errorStr = String(invoiceError);
+              if ((invoiceError as any)?.response?.status === 429 || errorStr.includes('429')) {
+                console.log(`[Contract Debug] Rate limited at invoice ${i}, extending delay...`);
+                setStatus(`Rate limited while fetching invoice ${i}. Waiting longer...`);
+                await delay(RATE_LIMIT_DELAY * 2); // Double the delay for rate limits
+              } else {
+                // Continue fetching other invoices even if one fails
+                if (i > 0) {
+                  await delay(RATE_LIMIT_DELAY);
+                }
+              }
+            }
+          }
+          
+          // Update state with all invoices (newest first)
+          if (allInvoices.length > 0) {
+            fetchedInvoicesCount = allInvoices.length;
+            console.log('[Contract Debug] All invoices fetched (newest first):', allInvoices);
+            setAllInvoices(allInvoices);
+          }
+        }
+      } catch (invoiceMethodError) {
+        console.log('[Contract Debug] TestInvoice methods error:', invoiceMethodError);
+      }
+
+      console.log('[Contract Debug] Parsed values:', { 
+        invoiceCount: invoiceCountValue,
+        nextInvoiceId: nextInvoiceIdValue,
+        latestInvoice
+      });
+
+      setVersion(0); // Default value since we're not using the old contract
+      setInvoiceCount(invoiceCountValue);
+      setNextInvoiceId(nextInvoiceIdValue);
+      
+      if (invoiceCountValue > 0) {
+        setStatus(`Successfully loaded ${fetchedInvoicesCount}/${invoiceCountValue} invoices (newest first) using individual get_invoice calls`);
+      } else {
+        setStatus('Contract data loaded - No invoices found');
+      }
+
+    } catch (err: any) {
+      console.error('[Counter Debug] Failed to fetch contract data:', err);
+      
+      // Handle rate limiting with exponential backoff
+      if (err?.response?.status === 429 || err?.message?.includes('429')) {
+        if (retryCount < MAX_RETRIES) {
+          const retryDelay = RETRY_DELAY * Math.pow(2, retryCount); // Exponential backoff
+          console.log(`[Counter Debug] Rate limited, retrying in ${retryDelay}ms... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+          setStatus(`Rate limited, retrying in ${retryDelay / 1000}s...`);
+          await delay(retryDelay);
+          return fetchContractDataWithRetry(retryCount + 1);
+        } else {
+          setStatus("Rate limited. Please wait before refreshing.");
+        }
+      } else {
+        const errorMessage = `Failed to fetch contract data: ${err instanceof Error ? err.message : 'Unknown error'}`;
+        console.log('[Counter Debug] Error message:', errorMessage);
+        setStatus(errorMessage);
+      }
+    }
+  };
+
   const fetchContractData = async () => {
     // Prevent overlapping requests
     if (isFetchingRef.current) {
       console.log('[Counter Debug] Fetch already in progress, skipping...');
       return;
     }
+
+    // Rate limiting  
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < RATE_LIMIT_DELAY) {
+      const waitTime = Math.ceil((RATE_LIMIT_DELAY - (now - lastFetchTimeRef.current)) / 1000);
+      console.log('[Counter Debug] Rate limit: too soon since last request');
+      setStatus(`Please wait ${waitTime} more seconds before refreshing to avoid rate limits`);
+      return;
+    }
     
     isFetchingRef.current = true;
+    lastFetchTimeRef.current = now;
     console.log('[Counter Debug] Fetching contract data...');
+    
     try {
       setIsLoading(true);
-
-      console.log('[Counter Debug] Calling contract methods on address:', CONTRACT_ADDRESS);
-
-      // Use TonClient to call contract get methods (matching TolkContracts wrapper)
-      const counterResult = await tonClient.runMethod(contractAddress, "currentCounter");
-      console.log('[Counter Debug] Counter result:', counterResult);
-
-      const versionResult = await tonClient.runMethod(contractAddress, "initialId");
-      console.log('[Counter Debug] Version result:', versionResult);
-
-      const counterValue = Number(counterResult.stack.readNumber());
-      const versionValue = Number(versionResult.stack.readNumber());
-
-      console.log('[Counter Debug] Parsed values:', { counter: counterValue, version: versionValue });
-
-      setCounter(counterValue);
-      setVersion(versionValue);
-      setStatus("Contract data loaded successfully");
-    } catch (err) {
-      console.error('[Counter Debug] Failed to fetch contract data:', err);
-      const errorMessage = `Failed to fetch contract data: ${err instanceof Error ? err.message : 'Unknown error'}`;
-      console.log('[Counter Debug] Error message:', errorMessage);
-      setStatus(errorMessage);
+      await fetchContractDataWithRetry();
     } finally {
       setIsLoading(false);
       isFetchingRef.current = false;
@@ -72,10 +258,11 @@ export const CounterPage: React.FC = () => {
     const handleVisibility = () => {
       if (!document.hidden) {
         console.log('[Counter Debug] Tab became visible, resuming polling');
-        fetchContractData();
-        // Start polling when visible
+        // Small delay before fetching to avoid immediate rate limits
+        setTimeout(fetchContractData, 1000);
+        // Start polling when visible with longer interval
         if (!intervalRef.current) {
-          intervalRef.current = setInterval(fetchContractData, 30000); // Increased to 30s
+          intervalRef.current = setInterval(fetchContractData, POLLING_INTERVAL);
         }
       } else {
         console.log('[Counter Debug] Tab hidden, pausing polling');
@@ -89,9 +276,10 @@ export const CounterPage: React.FC = () => {
 
     document.addEventListener("visibilitychange", handleVisibility);
 
-    // Initial fetch & polling
-    fetchContractData();
-    intervalRef.current = setInterval(fetchContractData, 30000); // Poll every 30 seconds
+    // Initial fetch with delay
+    setTimeout(fetchContractData, 500);
+    // Set up polling with configured interval to reduce rate limiting
+    intervalRef.current = setInterval(fetchContractData, POLLING_INTERVAL);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
@@ -102,142 +290,207 @@ export const CounterPage: React.FC = () => {
     };
   }, []);
 
-  // Helper function to encode Increment message payload
-  const encodeIncrementMessage = (): string => {
+
+
+
+
+  // Helper function to encode AddInvoice message payload for FunC contract
+  const encodeAddInvoiceMessage = (description: string, amount: bigint, walletAddr: Address): string => {
     try {
-      // Create a cell with OP_INCREASE opcode (matching TolkContracts wrapper)
+      // Create a hash of the description string for uint64
+      // Using a simple but effective hash function since FunC expects uint64
+      let hash = 0n;
+      const descriptionBytes = new TextEncoder().encode(description);
+      
+      // Simple FNV-1a inspired hash for uint64
+      hash = 14695981039346656037n; // FNV offset basis for 64-bit
+      for (let i = 0; i < descriptionBytes.length; i++) {
+        hash = hash ^ BigInt(descriptionBytes[i]);
+        hash = (hash * 1099511628211n) & 0xFFFFFFFFFFFFFFFFn; // FNV prime for 64-bit, mask to 64 bits
+      }
+      
       const body = beginCell()
-        .storeUint(0x7e8764ef, 32) // OP_INCREASE opcode
+        .storeUint(Opcodes.addInvoice, 32) // AddInvoice opcode: 0x1
         .storeUint(0, 64) // query_id
-        .storeUint(1, 32) // increaseBy amount
+        .storeUint(hash, 64) // description as uint64 hash
+        .storeCoins(amount) // amount in nanotons
+        .storeAddress(walletAddr) // wallet address (this should match load_msg_addr() in FunC)
         .endCell();
+      
+      console.log('[Invoice Debug] Message cell structure:', {
+        opcode: Opcodes.addInvoice,
+        queryId: 0,
+        descriptionHash: hash.toString(16),
+        amountNano: amount.toString(),
+        walletAddress: walletAddr.toString(),
+        cellSize: body.bits.toString() + ' bits'
+      });
 
       const base64 = body.toBoc().toString('base64');
-
-      console.log('[Counter Debug] Increment payload encoding:', {
-        opcode: '0x7e8764ef',
-        queryId: 0,
-        increaseBy: 1,
+      console.log('[Invoice Debug] AddInvoice payload encoding:', {
+        opcode: Opcodes.addInvoice,
+        description,
+        descriptionHash: hash.toString(16),
+        amount: amount.toString(),
+        walletAddr: walletAddr.toString(),
         base64
       });
 
       return base64;
     } catch (error) {
-      console.error('[Counter Debug] Payload encoding failed:', error);
-      throw new Error(`Failed to encode payload: ${error}`);
+      console.error('[Invoice Debug] AddInvoice payload encoding failed:', error);
+      throw new Error(`Failed to encode AddInvoice payload: ${error}`);
     }
   };
 
-  const onIncrementClick = async () => {
-    console.log('[Counter Debug] onIncrementClick called');
-    console.log('[Counter Debug] Wallet state:', {
-      connected: !!wallet,
-      address: wallet?.account?.address,
-      chain: wallet?.account?.chain
-    });
 
+
+  const onAddInvoiceClick = async () => {
     if (!wallet) {
-      const errorMsg = "Please connect your TON wallet first.";
-      console.log('[Counter Debug] No wallet connected:', errorMsg);
-      setStatus(errorMsg);
+      setStatus("Please connect your TON wallet first.");
+      return;
+    }
+
+    if (!newInvoiceDescription || !newInvoiceAmount || !newInvoiceWallet) {
+      setStatus("Please fill in all invoice fields.");
+      return;
+    }
+
+    if (newInvoiceDescription.length > 50) {
+      setStatus("Description too long (max 50 characters for better hashing).");
       return;
     }
 
     try {
       setIsLoading(true);
-      setStatus("Preparing transaction...");
-      console.log('[Counter Debug] Starting transaction preparation');
+      setStatus("Creating invoice...");
 
-      // Encode the Increment message payload
-      const payload = encodeIncrementMessage();
-      console.log('[Counter Debug] Encoded payload:', payload);
-
-      // Validate contract address
+      // Convert string inputs to proper types for FunC contract
+      const amountInNano = toNano(newInvoiceAmount);
+      
+      // Validate and parse wallet address
+      let walletAddress;
       try {
-        Address.parse(CONTRACT_ADDRESS);
+        walletAddress = Address.parse(newInvoiceWallet);
+        console.log('[Invoice Debug] Parsed wallet address:', walletAddress.toString());
       } catch (addrError) {
-        throw new Error(`Invalid contract address: ${CONTRACT_ADDRESS}`);
+        throw new Error(`Invalid wallet address: ${newInvoiceWallet}`);
       }
-
-      // Prepare transaction for TonConnect
-      const gasAmount = toNano("0.05");
+      
+      const payload = encodeAddInvoiceMessage(newInvoiceDescription, amountInNano, walletAddress);
+      
+      // Store the original description for UI display (by calculating the same hash)
+      const descriptionBytes = new TextEncoder().encode(newInvoiceDescription);
+      let hash = 14695981039346656037n;
+      for (let i = 0; i < descriptionBytes.length; i++) {
+        hash = hash ^ BigInt(descriptionBytes[i]);
+        hash = (hash * 1099511628211n) & 0xFFFFFFFFFFFFFFFFn;
+      }
+      const hashKey = hash.toString(16);
+      
+      // Update the description map
+      setDescriptionMap(prevMap => {
+        const newMap = new Map(prevMap);
+        newMap.set(hashKey, newInvoiceDescription);
+        return newMap;
+      });
+      
       const tx = {
-        validUntil: Math.floor(Date.now() / 1000) + 600, // 10 minutes
-        messages: [
-          {
-            address: CONTRACT_ADDRESS,
-            amount: gasAmount.toString(), // 0.05 TON for gas
-            payload: payload,
-          },
-        ],
+        validUntil: Math.floor(Date.now() / 1000) + 600,
+        messages: [{
+          address: CONTRACT_ADDRESS,
+          amount: toNano("0.1").toString(), // Increased gas to 0.1 TON in case 0.05 wasn't enough
+          payload: payload,
+        }],
       };
-
-      console.log('[Counter Debug] Gas amount calculation:', {
-        gasAmountTON: '0.05',
-        gasAmountNano: gasAmount.toString(),
-        contractAddress: CONTRACT_ADDRESS,
-        payloadLength: payload.length
-      });
-
-      console.log('[Counter Debug] Transaction object:', JSON.stringify(tx, null, 2));
-      console.log('[Counter Debug] TonConnect UI state:', {
-        connected: tonConnectUI?.connected,
-        account: tonConnectUI?.account,
-        wallet: tonConnectUI?.wallet
-      });
-
-      setStatus("Sending transaction...");
-      console.log('[Counter Debug] Calling tonConnectUI.sendTransaction...');
-
-      if (!tonConnectUI) {
-        throw new Error("TonConnect UI not initialized");
-      }
+      
+      console.log('[Invoice Debug] Full transaction object:', JSON.stringify(tx, null, 2));
 
       const result = await tonConnectUI.sendTransaction(tx);
-      console.log('[Counter Debug] Transaction result:', result);
+      console.log('[Invoice Debug] AddInvoice transaction result:', result);
+      console.log('[Invoice Debug] Transaction payload details:', {
+        contractAddress: CONTRACT_ADDRESS,
+        gasAmount: toNano("0.05").toString(),
+        payloadBase64: payload,
+        description: newInvoiceDescription,
+        amount: newInvoiceAmount,
+        wallet: newInvoiceWallet
+      });
+      
+      setStatus("Invoice created! Waiting for confirmation...");
+      
+      // Clear form
+      setNewInvoiceDescription("");
+      setNewInvoiceAmount("");
+      setNewInvoiceWallet("");
 
-      setStatus("Transaction sent! Waiting for confirmation...");
-
-      // Refresh contract data after a short delay
+      // Refresh contract data after delay to avoid rate limits
       setTimeout(() => {
+        setStatus("Refreshing contract data to check if invoice was added...");
+        fetchContractData();
+      }, 8000);
+      
+      // Also try a quicker refresh to see immediate changes
+      setTimeout(() => {
+        console.log('[Invoice Debug] Quick refresh to check invoice count...');
         fetchContractData();
       }, 3000);
 
     } catch (e) {
-      console.error('[Counter Debug] Transaction failed with error:', e);
-      console.error('[Counter Debug] Error details:', {
-        name: (e as Error).name,
-        message: (e as Error).message,
-        stack: (e as Error).stack,
-        cause: (e as any).cause,
+      console.error('[Invoice Debug] AddInvoice transaction failed:', e);
+      console.error('[Invoice Debug] Full error object:', {
+        name: (e as Error)?.name,
+        message: (e as Error)?.message,
+        stack: (e as Error)?.stack
       });
-
-      // Try to extract meaningful error message
-      let errorMessage = "Transaction failed";
+      
+      let errorMessage = 'Unknown error';
       if (e instanceof Error) {
-        errorMessage = `Transaction failed: ${e.message}`;
+        errorMessage = e.message;
       } else if (typeof e === 'string') {
-        errorMessage = `Transaction failed: ${e}`;
-      } else if (e && typeof e === 'object' && 'message' in e) {
-        errorMessage = `Transaction failed: ${e.message}`;
-      } else {
-        errorMessage = `Transaction failed: ${String(e)}`;
+        errorMessage = e;
       }
-
-      // Check for specific error types
-      if (errorMessage.includes('User rejected')) {
-        errorMessage = "Transaction was cancelled by user";
-      } else if (errorMessage.includes('insufficient')) {
-        errorMessage = "Insufficient funds for transaction";
-      } else if (errorMessage.includes('network')) {
-        errorMessage = "Network error - please try again";
-      }
-
-      console.log('[Counter Debug] Setting error status:', errorMessage);
-      setStatus(errorMessage);
+      
+      setStatus(`Failed to create invoice: ${errorMessage}`);
     } finally {
       setIsLoading(false);
-      console.log('[Counter Debug] Transaction attempt completed');
+    }
+  };
+
+    const onUpdateInvoiceClick = async (invoiceId: number) => {
+    if (!wallet) {
+      alert("Please connect your wallet first!");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const body = beginCell()
+        .storeUint(Opcodes.updateInvoice, 32) // op code for updateInvoice
+        .storeUint(0, 64) // query id
+        .storeUint(invoiceId, 32) // Pass the invoice ID as number
+        .endCell();
+
+      const message = {
+        address: CONTRACT_ADDRESS,
+        amount: toNano("0.05").toString(),
+        payload: body.toBoc().toString("base64"),
+      };
+
+      await tonConnectUI.sendTransaction({
+        validUntil: Math.floor(Date.now() / 1000) + 300, // 5 minutes
+        messages: [message],
+      });
+
+      alert("Invoice update request sent!");
+      // Refresh data after update
+      setTimeout(() => fetchContractData(), 3000);
+    } catch (error) {
+      console.error("Error sending transaction:", error);
+      alert(`Error: ${error}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -256,9 +509,9 @@ export const CounterPage: React.FC = () => {
 
         {/* Header */}
         <div className="bg-[#3a3f47] rounded-lg p-6 mb-6">
-          <h1 className="text-2xl font-bold mb-4">Counter Contract (Tolk)</h1>
+          <h1 className="text-2xl font-bold mb-4">Invoice Contract (FunC)</h1>
           <p className="text-sm text-gray-300 mb-4">
-            A simple counter smart contract written in Tolk language
+            A smart contract for managing invoices with multi-invoice storage, written in FunC language
           </p>
           <TonConnectButton />
         </div>
@@ -281,11 +534,19 @@ export const CounterPage: React.FC = () => {
               <span className="text-gray-400">Contract Version:</span>
               <p className="text-xl font-bold">{version !== null ? version : "Loading..."}</p>
             </div>
-            <div>
-              <span className="text-gray-400">Current Counter:</span>
-              <p className="text-4xl font-bold text-blue-400 my-4">
-                {counter !== null ? counter : "Loading..."}
-              </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <span className="text-gray-400">Total Invoices:</span>
+                <p className="text-2xl font-bold text-green-400">
+                  {invoiceCount}
+                </p>
+              </div>
+              <div>
+                <span className="text-gray-400">Next Invoice ID:</span>
+                <p className="text-2xl font-bold text-blue-400">
+                  {nextInvoiceId}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -294,30 +555,119 @@ export const CounterPage: React.FC = () => {
             disabled={isLoading}
             className="mt-4 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-semibold py-2 px-4 rounded transition-colors"
           >
-            {isLoading ? "Loading..." : "Refresh Data"}
+            {isLoading ? "Loading Contract Data..." : "Refresh All Data"}
           </button>
           <p className="text-xs text-gray-500 mt-2 text-center">
-            Auto-refreshes every 30 seconds (pauses when tab is hidden)
+            Auto-refreshes every {POLLING_INTERVAL / 1000}s (pauses when tab is hidden)<br/>
+            Fetches invoices individually from newest to oldest with proper delays
           </p>
         </div>
 
-        {/* Increment Transaction */}
-        <div className="bg-[#3a3f47] rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">Increment Counter</h2>
-          <p className="text-sm text-gray-400 mb-4">
-            Click the button below to increment the counter by 1. This will send a transaction to the blockchain.
-          </p>
-          <button
-            onClick={onIncrementClick}
-            disabled={!wallet || isLoading}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold py-3 px-4 rounded transition-colors"
-          >
-            {isLoading ? "Processing..." : "Increment Counter (+1)"}
-          </button>
-          <p className="text-xs text-gray-500 mt-2">
-            Gas fee: ~0.05 TON
-          </p>
+        {/* Create Invoice */}
+        <div id="create-invoice-section">
         </div>
+        <div className="bg-[#3a3f47] rounded-lg p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-4">Create New Invoice</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Description</label>
+              <input
+                type="text"
+                value={newInvoiceDescription}
+                onChange={(e) => setNewInvoiceDescription(e.target.value)}
+                placeholder="Invoice description (max 50 characters)"
+                maxLength={32}
+                className="w-full bg-[#282c34] text-white px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Amount (TON)</label>
+              <input
+                type="number"
+                value={newInvoiceAmount}
+                onChange={(e) => setNewInvoiceAmount(e.target.value)}
+                placeholder="0.1"
+                step="0.001"
+                min="0"
+                className="w-full bg-[#282c34] text-white px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Client Wallet Address</label>
+              <input
+                type="text"
+                value={newInvoiceWallet}
+                onChange={(e) => setNewInvoiceWallet(e.target.value)}
+                placeholder="EQD..."
+                className="w-full bg-[#282c34] text-white px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none font-mono text-sm"
+              />
+            </div>
+            <button
+              onClick={onAddInvoiceClick}
+              disabled={!wallet || isLoading || !newInvoiceDescription || !newInvoiceAmount || !newInvoiceWallet}
+              className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white font-semibold py-3 px-4 rounded transition-colors"
+            >
+              {isLoading ? "Processing..." : "Create Invoice"}
+            </button>
+            <p className="text-xs text-gray-500">
+              Gas fee: ~0.05 TON
+            </p>
+          </div>
+        </div>
+
+        {/* All Invoices List */}
+        {allInvoices.length > 0 && (
+          <div className="bg-[#3a3f47] rounded-lg p-6 mb-6">
+            <h2 className="text-lg font-semibold mb-4">All Invoices ({allInvoices.length})</h2>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {allInvoices.map((invoiceItem) => (
+                <div key={invoiceItem.invoiceId} className="border border-gray-600 rounded-lg p-4 bg-gray-800">
+                  <div className="flex justify-between items-start mb-3">
+                    <p className="font-semibold text-blue-400">#{invoiceItem.invoiceId}</p>
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      invoiceItem.paid ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                    }`}>
+                      {invoiceItem.paid ? 'PAID' : 'UNPAID'}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-xs text-gray-400">Description</p>
+                      {invoiceItem.descriptionText ? (
+                        <p className="break-words text-sm">{invoiceItem.descriptionText}</p>
+                      ) : (
+                        <p className="break-words text-sm font-mono text-gray-500">
+                          Hash: 0x{invoiceItem.description.toString(16)}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <p className="text-xs text-gray-400">Wallet Address</p>
+                      <p className="font-mono text-xs break-all text-gray-300">{invoiceItem.wallet.toString()}</p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-xs text-gray-400">Amount</p>
+                      <p className="font-bold text-green-400">{Number(invoiceItem.amount) / 1e9} TON</p>
+                    </div>
+                  </div>
+                  
+                  {!invoiceItem.paid && (
+                    <button
+                      className="mt-3 w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded transition-colors text-sm"
+                      onClick={() => onUpdateInvoiceClick(invoiceItem.invoiceId)}
+                      disabled={isLoading}
+                    >
+                      Mark as Paid
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Status */}
         {status && (

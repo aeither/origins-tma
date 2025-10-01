@@ -58,11 +58,26 @@ export const HomePage: React.FC = () => {
               to="/counter"
               className="block bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-4 px-6 rounded-lg text-center transition-all transform hover:scale-105"
             >
-              Counter Contract Demo
+              📋 Invoice Contract Demo
             </Link>
             <p className="text-sm text-gray-300 text-center">
-              Interact with a simple Tolk counter smart contract on the TON blockchain
+              Interact with an invoice management smart contract on TON blockchain
             </p>
+            
+            <div className="grid md:grid-cols-2 gap-4 mt-4">
+              <Link
+                to="/counter"
+                className="block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg text-center transition-colors"
+              >
+                View All Invoices
+              </Link>
+              <Link
+                to="/update-invoice"
+                className="block bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-3 px-4 rounded-lg text-center transition-colors"
+              >
+                Mark Invoice as Paid
+              </Link>
+            </div>
           </div>
         </div>
 

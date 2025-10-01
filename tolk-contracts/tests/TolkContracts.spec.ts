@@ -98,4 +98,66 @@ describe('TolkContracts', () => {
 
         expect(await tolkContracts.getCounter()).toBe(0);
     });
+
+    it('should create and manage invoices', async () => {
+        const invoiceCreator = await blockchain.treasury('invoiceCreator');
+        const clientWallet = await blockchain.treasury('client');
+
+        // Check initial invoice count
+        const initialCount = await tolkContracts.getInvoiceCount();
+        expect(initialCount).toBe(0);
+
+        const initialNextId = await tolkContracts.getNextInvoiceId();
+        expect(initialNextId).toBe(0);
+
+        // Create an invoice
+        const createResult = await tolkContracts.sendAddInvoice(invoiceCreator.getSender(), {
+            description: "Test Invoice",
+            amount: toNano('1.5'),
+            wallet: clientWallet.address,
+            value: toNano('0.05'),
+        });
+
+        expect(createResult.transactions).toHaveTransaction({
+            from: invoiceCreator.address,
+            to: tolkContracts.address,
+            success: true,
+        });
+
+        // Check updated counts
+        const newCount = await tolkContracts.getInvoiceCount();
+        expect(newCount).toBe(1);
+
+        const newNextId = await tolkContracts.getNextInvoiceId();
+        expect(newNextId).toBe(1);
+
+        // Get the latest invoice
+        const latestInvoice = await tolkContracts.getLatestInvoice();
+        expect(latestInvoice).toBeTruthy();
+        if (latestInvoice) {
+            expect(latestInvoice.invoice_id).toBe(0);
+            expect(latestInvoice.amount).toBe(toNano('1.5'));
+            expect(latestInvoice.wallet.toString()).toBe(clientWallet.address.toString());
+            expect(latestInvoice.paid).toBe(false);
+        }
+
+        // Update invoice status
+        const updateResult = await tolkContracts.sendUpdateInvoice(invoiceCreator.getSender(), {
+            invoiceId: 0,
+            value: toNano('0.05'),
+        });
+
+        expect(updateResult.transactions).toHaveTransaction({
+            from: invoiceCreator.address,
+            to: tolkContracts.address,
+            success: true,
+        });
+
+        // Check if invoice was marked as paid
+        const updatedInvoice = await tolkContracts.getLatestInvoice();
+        expect(updatedInvoice).toBeTruthy();
+        if (updatedInvoice) {
+            expect(updatedInvoice.paid).toBe(true);
+        }
+    });
 });
