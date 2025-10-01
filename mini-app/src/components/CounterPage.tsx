@@ -463,6 +463,36 @@ export const CounterPage: React.FC = () => {
       return;
     }
 
+    // Find the invoice to get the amount
+    const invoice = allInvoices.find(inv => inv.invoiceId === invoiceId);
+    if (!invoice) {
+      alert("Invoice not found!");
+      return;
+    }
+
+    if (invoice.paid) {
+      const confirmPay = window.confirm("This invoice is already marked as paid. Do you want to proceed anyway?");
+      if (!confirmPay) {
+        return;
+      }
+    }
+
+    // Calculate total: invoice amount + transaction fee
+    const transactionFee = toNano("0.1");
+    const totalAmount = invoice.amount + transactionFee;
+    const invoiceAmountTON = Number(invoice.amount) / 1e9;
+    const totalAmountTON = Number(totalAmount) / 1e9;
+
+    const confirmMessage = `Mark invoice #${invoiceId} as paid?\n\n` +
+      `Invoice Amount: ${invoiceAmountTON} TON\n` +
+      `Transaction Fee: 0.1 TON\n` +
+      `Total: ${totalAmountTON} TON\n\n` +
+      `The invoice amount will be sent to:\n${invoice.wallet.toString()}`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -474,7 +504,7 @@ export const CounterPage: React.FC = () => {
 
       const message = {
         address: CONTRACT_ADDRESS,
-        amount: toNano("0.05").toString(),
+        amount: totalAmount.toString(), // Invoice amount + transaction fee
         payload: body.toBoc().toString("base64"),
       };
 
@@ -483,7 +513,7 @@ export const CounterPage: React.FC = () => {
         messages: [message],
       });
 
-      alert("Invoice update request sent!");
+      alert(`Invoice update sent! ${invoiceAmountTON} TON will be transferred to the wallet.`);
       // Refresh data after update
       setTimeout(() => fetchContractData(), 3000);
     } catch (error) {

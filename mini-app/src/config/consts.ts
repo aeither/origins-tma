@@ -1,5 +1,5 @@
 // Contract addresses
-export const CONTRACT_ADDRESS = "EQDoUcJ5yd_QppVeXeCdca6EVoAAEehrehpBA4_IkW3DdVsF";//"kQC1FkVI8tL5b3PFQfHPKCxoIXaXHfmbIbamyXnyC3ICFERh";
+export const CONTRACT_ADDRESS = "EQDlmDFhvy9n2UlkYYQwLcwEjE5DgQSZC7SdjOETq2iaGn3A";//"kQC1FkVI8tL5b3PFQfHPKCxoIXaXHfmbIbamyXnyC3ICFERh";
 
 // Network configuration
 // Set to 'testnet' for testnet or 'mainnet' for mainnet
