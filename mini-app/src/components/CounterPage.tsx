@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  TonConnectButton,
   useTonConnectUI,
   useTonWallet,
 } from "@tonconnect/ui-react";
@@ -26,7 +25,6 @@ const Opcodes = {
 export const CounterPage: React.FC = () => {
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
-  const [version, setVersion] = useState<number | null>(null);
   const [status, setStatus] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   
@@ -191,7 +189,6 @@ export const CounterPage: React.FC = () => {
         latestInvoice
       });
 
-      setVersion(0); // Default value since we're not using the old contract
       setInvoiceCount(invoiceCountValue);
       setNextInvoiceId(nextInvoiceIdValue);
       
@@ -525,55 +522,61 @@ export const CounterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#282c34] text-white p-4">
-      <div className="max-w-md mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-[#002952] via-[#003c71] to-[#004a8f] text-white p-6">
+      <div className="max-w-4xl mx-auto">
         {/* Navigation */}
-        <div className="mb-6">
+        <div className="mb-8">
           <Link
             to="/"
-            className="text-blue-400 hover:text-blue-300 text-sm"
+            className="inline-flex items-center text-[#20d9c5] hover:text-[#60e8d8] transition-colors font-medium"
           >
-            ← Back to Home
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Home
           </Link>
         </div>
 
         {/* Header */}
-        <div className="bg-[#3a3f47] rounded-lg p-6 mb-6">
-          <h1 className="text-2xl font-bold mb-4">Invoice Contract (FunC)</h1>
-          <p className="text-sm text-gray-300 mb-4">
-            A smart contract for managing invoices with multi-invoice storage, written in FunC language
+        <div className="glass-card rounded-2xl p-8 mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="text-5xl">👨‍💻</div>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-[#20d9c5] to-[#60e8d8] bg-clip-text text-transparent">
+                Freelancer Dashboard
+              </h1>
+              <p className="text-gray-400 text-sm mt-1">Step 1: Create your invoices</p>
+            </div>
+          </div>
+          <p className="text-gray-300 mb-6 text-lg">
+            Create and manage invoices for your clients on TON blockchain
           </p>
-          <TonConnectButton />
         </div>
 
         {/* Contract Info */}
-        <div className="bg-[#3a3f47] rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">Contract Information</h2>
-          <div className="space-y-2">
+        <div className="glass-card rounded-2xl p-8 mb-8">
+          <h2 className="text-2xl font-bold mb-6">Contract Information</h2>
+          <div className="space-y-5">
             <div>
-              <span className="text-gray-400">Connected Wallet:</span>
-              <p className="font-mono text-sm break-all">
+              <span className="text-gray-400 text-sm block mb-1">Connected Wallet</span>
+              <p className="font-mono text-sm break-all bg-white/5 p-3 rounded-lg">
                 {wallet?.account.address || "None"}
               </p>
             </div>
             <div>
-              <span className="text-gray-400">Contract Address:</span>
-              <p className="font-mono text-sm break-all">{CONTRACT_ADDRESS}</p>
+              <span className="text-gray-400 text-sm block mb-1">Contract Address</span>
+              <p className="font-mono text-sm break-all bg-white/5 p-3 rounded-lg">{CONTRACT_ADDRESS}</p>
             </div>
-            <div>
-              <span className="text-gray-400">Contract Version:</span>
-              <p className="text-xl font-bold">{version !== null ? version : "Loading..."}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="text-gray-400">Total Invoices:</span>
-                <p className="text-2xl font-bold text-green-400">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="glass-card p-5 rounded-xl">
+                <span className="text-gray-400 text-sm block mb-2">Total Invoices</span>
+                <p className="text-3xl font-bold text-[#20d9c5]">
                   {invoiceCount}
                 </p>
               </div>
-              <div>
-                <span className="text-gray-400">Next Invoice ID:</span>
-                <p className="text-2xl font-bold text-blue-400">
+              <div className="glass-card p-5 rounded-xl">
+                <span className="text-gray-400 text-sm block mb-2">Next Invoice ID</span>
+                <p className="text-3xl font-bold text-[#20d9c5]">
                   {nextInvoiceId}
                 </p>
               </div>
@@ -583,11 +586,11 @@ export const CounterPage: React.FC = () => {
           <button
             onClick={fetchContractData}
             disabled={isLoading}
-            className="mt-4 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-semibold py-2 px-4 rounded transition-colors"
+            className="mt-6 w-full glass-button disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-xl"
           >
             {isLoading ? "Loading Contract Data..." : "Refresh All Data"}
           </button>
-          <p className="text-xs text-gray-500 mt-2 text-center">
+          <p className="text-xs text-gray-400 mt-3 text-center">
             Auto-refreshes every {POLLING_INTERVAL / 1000}s (pauses when tab is hidden)<br/>
             Fetches invoices individually from newest to oldest with proper delays
           </p>
@@ -596,22 +599,33 @@ export const CounterPage: React.FC = () => {
         {/* Create Invoice */}
         <div id="create-invoice-section">
         </div>
-        <div className="bg-[#3a3f47] rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">Create New Invoice</h2>
-          <div className="space-y-4">
+        <div className="glass-card rounded-2xl p-8 mb-8">
+          <h2 className="text-2xl font-bold mb-4">Create New Invoice</h2>
+          <div className="bg-[#20d9c5]/10 border border-[#20d9c5]/30 rounded-xl p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <svg className="w-6 h-6 text-[#20d9c5] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-[#20d9c5] font-semibold text-sm">Share Invoice ID with Your Client</p>
+                <p className="text-gray-300 text-sm mt-1">After creating an invoice, share the Invoice ID (e.g., #0, #1) with your client so they can pay it in the Client Payment Portal.</p>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-5">
             <div>
-              <label className="block text-sm text-gray-400 mb-2">Description</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
               <input
                 type="text"
                 value={newInvoiceDescription}
                 onChange={(e) => setNewInvoiceDescription(e.target.value)}
                 placeholder="Invoice description (max 50 characters)"
                 maxLength={32}
-                className="w-full bg-[#282c34] text-white px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                className="w-full glass-input text-white px-4 py-3 rounded-xl transition-all"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-2">Amount (TON)</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Amount (TON)</label>
               <input
                 type="number"
                 value={newInvoiceAmount}
@@ -619,27 +633,27 @@ export const CounterPage: React.FC = () => {
                 placeholder="0.1"
                 step="0.001"
                 min="0"
-                className="w-full bg-[#282c34] text-white px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                className="w-full glass-input text-white px-4 py-3 rounded-xl transition-all"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-2">Client Wallet Address</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Client Wallet Address</label>
               <input
                 type="text"
                 value={newInvoiceWallet}
                 onChange={(e) => setNewInvoiceWallet(e.target.value)}
                 placeholder="EQD..."
-                className="w-full bg-[#282c34] text-white px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none font-mono text-sm"
+                className="w-full glass-input text-white px-4 py-3 rounded-xl font-mono text-sm transition-all"
               />
             </div>
             <button
               onClick={onAddInvoiceClick}
               disabled={!wallet || isLoading || !newInvoiceDescription || !newInvoiceAmount || !newInvoiceWallet}
-              className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white font-semibold py-3 px-4 rounded transition-colors"
+              className="w-full glass-button disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl"
             >
               {isLoading ? "Processing..." : "Create Invoice"}
             </button>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-400 text-center">
               Gas fee: ~0.05 TON
             </p>
           </div>
@@ -647,25 +661,25 @@ export const CounterPage: React.FC = () => {
 
         {/* All Invoices List */}
         {allInvoices.length > 0 && (
-          <div className="bg-[#3a3f47] rounded-lg p-6 mb-6">
-            <h2 className="text-lg font-semibold mb-4">All Invoices ({allInvoices.length})</h2>
-            <div className="space-y-4 max-h-96 overflow-y-auto">
+          <div className="glass-card rounded-2xl p-8 mb-8">
+            <h2 className="text-2xl font-bold mb-6">All Invoices ({allInvoices.length})</h2>
+            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
               {allInvoices.map((invoiceItem) => (
-                <div key={invoiceItem.invoiceId} className="border border-gray-600 rounded-lg p-4 bg-gray-800">
-                  <div className="flex justify-between items-start mb-3">
-                    <p className="font-semibold text-blue-400">#{invoiceItem.invoiceId}</p>
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      invoiceItem.paid ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                <div key={invoiceItem.invoiceId} className="glass-card rounded-xl p-5 hover:border-[#20d9c5] transition-all duration-300">
+                  <div className="flex justify-between items-start mb-4">
+                    <p className="font-bold text-xl text-[#20d9c5]">#{invoiceItem.invoiceId}</p>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      invoiceItem.paid ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                     }`}>
-                      {invoiceItem.paid ? 'PAID' : 'UNPAID'}
+                      {invoiceItem.paid ? '✓ PAID' : '○ UNPAID'}
                     </span>
                   </div>
                   
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div>
-                      <p className="text-xs text-gray-400">Description</p>
+                      <p className="text-xs text-gray-400 mb-1">Description</p>
                       {invoiceItem.descriptionText ? (
-                        <p className="break-words text-sm">{invoiceItem.descriptionText}</p>
+                        <p className="break-words text-sm text-gray-200">{invoiceItem.descriptionText}</p>
                       ) : (
                         <p className="break-words text-sm font-mono text-gray-500">
                           Hash: 0x{invoiceItem.description.toString(16)}
@@ -674,19 +688,19 @@ export const CounterPage: React.FC = () => {
                     </div>
                     
                     <div>
-                      <p className="text-xs text-gray-400">Wallet Address</p>
-                      <p className="font-mono text-xs break-all text-gray-300">{invoiceItem.wallet.toString()}</p>
+                      <p className="text-xs text-gray-400 mb-1">Wallet Address</p>
+                      <p className="font-mono text-xs break-all text-gray-300 bg-white/5 p-2 rounded">{invoiceItem.wallet.toString()}</p>
                     </div>
                     
                     <div>
-                      <p className="text-xs text-gray-400">Amount</p>
-                      <p className="font-bold text-green-400">{Number(invoiceItem.amount) / 1e9} TON</p>
+                      <p className="text-xs text-gray-400 mb-1">Amount</p>
+                      <p className="font-bold text-2xl text-[#20d9c5]">{Number(invoiceItem.amount) / 1e9} TON</p>
                     </div>
                   </div>
                   
                   {!invoiceItem.paid && (
                     <button
-                      className="mt-3 w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded transition-colors text-sm"
+                      className="mt-4 w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white py-3 px-4 rounded-xl transition-all duration-300 font-semibold shadow-lg hover:shadow-amber-500/30"
                       onClick={() => onUpdateInvoiceClick(invoiceItem.invoiceId)}
                       disabled={isLoading}
                     >
@@ -701,8 +715,8 @@ export const CounterPage: React.FC = () => {
 
         {/* Status */}
         {status && (
-          <div className="bg-[#3a3f47] rounded-lg p-4">
-            <h3 className="text-sm font-semibold mb-2">Status:</h3>
+          <div className="glass-card rounded-2xl p-6">
+            <h3 className="text-sm font-semibold mb-2 text-[#20d9c5]">Status</h3>
             <p className="text-sm text-gray-300">{status}</p>
           </div>
         )}
