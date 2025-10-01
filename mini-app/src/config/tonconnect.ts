@@ -5,17 +5,17 @@ export const getManifestUrl = () => {
   
   console.log('[TonConnect Debug] Current host:', currentHost);
   
-  // If we're using ngrok or a custom domain, use that
-  if (currentHost.includes('ngrok')) {
-    const manifestUrl = `${currentHost}/tonconnect-manifest.json`;
-    console.log('[TonConnect Debug] Using dynamic manifest URL:', manifestUrl);
-    return manifestUrl;
+  // If we're on localhost, use the ngrok URL for testing
+  if (currentHost.includes('localhost')) {
+    const ngrokManifestUrl = 'https://basically-enough-clam.ngrok-free.app/tonconnect-manifest.json';
+    console.log('[TonConnect Debug] Using ngrok manifest URL (localhost):', ngrokManifestUrl);
+    return ngrokManifestUrl;
   }
   
-  // Default to the ngrok URL you provided
-  const defaultManifestUrl = 'https://basically-enough-clam.ngrok-free.app/tonconnect-manifest.json';
-  console.log('[TonConnect Debug] Using default manifest URL:', defaultManifestUrl);
-  return defaultManifestUrl;
+  // For production deployments (Vercel, etc.), use the current host
+  const manifestUrl = `${currentHost}/tonconnect-manifest.json`;
+  console.log('[TonConnect Debug] Using current host manifest URL:', manifestUrl);
+  return manifestUrl;
 };
 
 export const getTwaReturnUrl = () => {

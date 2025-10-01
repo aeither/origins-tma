@@ -1,9 +1,9 @@
 {
   "manifestVersion": 2,
-  "url": "https://basically-enough-clam.ngrok-free.app",
+  "url": "https://telepay-mini-app.vercel.app",
   "name": "Origins",
-  "iconUrl": "https://basically-enough-clam.ngrok-free.app/icon-180x180.png",
-  "termsOfUseUrl": "https://basically-enough-clam.ngrok-free.app/terms.txt",
-  "privacyPolicyUrl": "https://basically-enough-clam.ngrok-free.app/privacy.txt",
-  "twa_return_url": "https://basically-enough-clam.ngrok-free.app"
+  "iconUrl": "https://telepay-mini-app.vercel.app/icon-180x180.png",
+  "termsOfUseUrl": "https://telepay-mini-app.vercel.app/terms.txt",
+  "privacyPolicyUrl": "https://telepay-mini-app.vercel.app/privacy.txt",
+  "twa_return_url": "https://telepay-mini-app.vercel.app"
 }
