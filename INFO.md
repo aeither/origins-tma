@@ -12,3 +12,9 @@
 
  Tests
  npm test -- tests/RewardContract.spec.ts
+
+--
+
+## Contracts
+kQC1FkVI8tL5b3PFQfHPKCxoIXaXHfmbIbamyXnyC3ICFERh
+
