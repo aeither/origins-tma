@@ -4,21 +4,12 @@ import viteTsConfigPaths from 'vite-tsconfig-paths'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { nitroV2Plugin } from '@tanstack/nitro-v2-vite-plugin'
-import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 const config = defineConfig({
   plugins: [
     // this is the plugin that enables path aliases
     viteTsConfigPaths({
       projects: ['./tsconfig.json'],
-    }),
-    // Node.js polyfills for browser (fixes Buffer not found error)
-    nodePolyfills({
-      include: ['buffer', 'process', 'util', 'stream'],
-      globals: {
-        Buffer: true,
-        process: true,
-      },
     }),
     tailwindcss(),
     tanstackStart(),
@@ -43,6 +34,11 @@ const config = defineConfig({
       define: {
         global: 'globalThis',
       },
+    },
+  },
+  resolve: {
+    alias: {
+      buffer: 'buffer/',
     },
   },
   define: {

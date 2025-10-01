@@ -1,3 +1,4 @@
+import '../polyfills' // Import polyfills first
 import {
   Outlet,
   HeadContent,
